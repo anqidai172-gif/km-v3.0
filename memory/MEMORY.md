@@ -1,0 +1,1 @@
+- [Expo App 闪退调试方法论](buglearning.md) — react-native-reanimated 导致 native crash 的完整排查流程与根因分析

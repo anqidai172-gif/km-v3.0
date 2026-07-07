@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "知网",
+    "slug": "knowledge-mesh",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "km",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "知网需要使用语音识别来将您的复述内容转换为文字，以便进行AI评分和分析。",
+        "NSMicrophoneUsageDescription": "知网需要访问麦克风来录制您的复述语音。"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-audio",
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#4A90D9"
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

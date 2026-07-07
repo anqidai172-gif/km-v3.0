@@ -1,0 +1,118 @@
+import React from 'react';
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  type TouchableOpacityProps,
+  type ViewStyle,
+} from 'react-native';
+import { colors } from '../../theme';
+
+interface ButtonProps extends TouchableOpacityProps {
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+  children: React.ReactNode;
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  children,
+  style,
+  disabled,
+  ...props
+}: ButtonProps) {
+  const isDisabled = disabled || loading;
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.base,
+        styles[variant],
+        styles[`size_${size}`],
+        isDisabled && styles.disabled,
+        style as ViewStyle,
+      ]}
+      disabled={isDisabled}
+      activeOpacity={0.7}
+      {...props}
+    >
+      {loading ? (
+        <ActivityIndicator
+          size="small"
+          color={variant === 'primary' ? colors.text.inverse : colors.primary}
+        />
+      ) : (
+        <Text
+          style={[
+            styles.text,
+            styles[`text_${variant}`],
+            styles[`textSize_${size}`],
+          ]}
+        >
+          {children}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  base: {
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  primary: {
+    backgroundColor: colors.primary,
+  },
+  secondary: {
+    backgroundColor: colors.primaryLight,
+  },
+  ghost: {
+    backgroundColor: 'transparent',
+  },
+  danger: {
+    backgroundColor: colors.danger,
+  },
+  size_sm: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    minHeight: 32,
+  },
+  size_md: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    minHeight: 44,
+  },
+  size_lg: {
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    minHeight: 52,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  text: {
+    fontWeight: '600',
+  },
+  text_primary: {
+    color: colors.text.inverse,
+  },
+  text_secondary: {
+    color: colors.primary,
+  },
+  text_ghost: {
+    color: colors.text.secondary,
+  },
+  text_danger: {
+    color: colors.text.inverse,
+  },
+  textSize_sm: { fontSize: 13 },
+  textSize_md: { fontSize: 15 },
+  textSize_lg: { fontSize: 17 },
+});
