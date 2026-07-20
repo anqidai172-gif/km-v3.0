@@ -12,7 +12,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../src/theme';
+import { colors, tokens } from '../../src/theme';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { Slider } from '../../src/components/ui/Slider';
@@ -21,11 +21,7 @@ import { useKnowledgeStore } from '../../src/stores';
 import { TRAINING, CATEGORY } from '../../src/utils/constants';
 import type { KnowledgeCategory } from '../../src/types';
 
-const CATEGORY_COLORS = [
-  '#4A90D9', '#34C759', '#FF9500', '#FF3B30', '#AF52DE',
-  '#FF2D55', '#5856D6', '#007AFF', '#5AC8FA', '#FFD60A',
-  '#32D74B', '#BF5AF2',
-];
+const CATEGORY_COLORS: readonly string[] = colors.categoryColors;
 
 export default function SettingsPage() {
   // Stores
@@ -125,7 +121,7 @@ export default function SettingsPage() {
               value={settings.dailyReminderEnabled}
               onValueChange={handleReminderToggle}
               trackColor={{ false: colors.divider, true: colors.primaryLight }}
-              thumbColor={settings.dailyReminderEnabled ? colors.primary : '#f4f3f4'}
+              thumbColor={settings.dailyReminderEnabled ? colors.accent : colors.surfaceElevated}
             />
           </View>
 
@@ -507,7 +503,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(36,34,32,0.4)',
   },
   modalCard: {
     backgroundColor: colors.surface,

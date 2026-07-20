@@ -19,8 +19,6 @@ import { formatDate } from '../../utils/date';
 export function SidebarContent() {
   const router = useRouter();
   const closeSidebar = useUIStore((s) => s.closeSidebar);
-  const sidebarTimeFilter = useUIStore((s) => s.sidebarTimeFilter);
-  const setSidebarTimeFilter = useUIStore((s) => s.setSidebarTimeFilter);
 
   const items = useKnowledgeStore((s) => s.items);
   const records = useExpressionStore((s) => s.records);
@@ -44,7 +42,6 @@ export function SidebarContent() {
 
   const handleDateFilter = (date: string | null) => {
     setSelectedDate(date);
-    setSidebarTimeFilter(date);
   };
 
   const getRecordForItem = (itemId: string): TrainingRecord | undefined =>

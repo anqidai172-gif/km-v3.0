@@ -18,6 +18,8 @@ interface ExpressionState {
   receiveFeedback: (recordId: string, attemptId: string, feedback: AIFeedback, score: number, passThreshold: number) => Promise<void>;
   submitAppeal: (recordId: string, attemptId: string) => Promise<void>;
   submitSatisfaction: (recordId: string, attemptId: string, satisfaction: 'thumbs_up' | 'thumbs_down', comment?: string) => Promise<void>;
+  finishSession: (recordId: string) => Promise<void>;
+  deferRecord: (recordId: string, days?: number) => Promise<void>;
 
   getRecordByKnowledgeId: (knowledgeItemId: string) => TrainingRecord | undefined;
   getTodayBoard: () => TrainingRecord[];
@@ -96,17 +98,7 @@ export const useExpressionStore = create<ExpressionState>((set, get) => ({
         : a
     );
 
-    let newState: TrainingState = record.state;
-    if (score >= passThreshold) {
-      newState = record.state === 'pending_retell' ? 'retold'
-        : record.state === 'pending_restate' ? 'restated'
-        : record.state;
-    } else {
-      newState = record.state === 'pending_retell' ? 'pending_restate'
-        : record.state === 'retold' ? 'pending_restate'
-        : 'pending_restate';
-    }
-
+    // 不再自动改状态 — 由 finishSession 手动触发
     const bestScore = record.bestScore
       ? Math.max(record.bestScore, score)
       : score;
@@ -124,7 +116,6 @@ export const useExpressionStore = create<ExpressionState>((set, get) => ({
 
     const updatedRecord = {
       ...record,
-      state: newState,
       currentScore: score,
       bestScore,
       priority,
@@ -163,6 +154,42 @@ export const useExpressionStore = create<ExpressionState>((set, get) => ({
     );
 
     const updatedRecord = { ...record, attempts, updatedAt: getNowStr() };
+    await expressionRepo.updateTrainingRecord(updatedRecord);
+    set((s) => ({
+      records: s.records.map((r) => (r.id === recordId ? updatedRecord : r)),
+    }));
+  },
+
+  finishSession: async (recordId) => {
+    const record = get().records.find((r) => r.id === recordId);
+    if (!record) return;
+
+    let newState: TrainingState = record.state;
+    if (record.state === 'pending_retell') {
+      newState = 'retold';
+    } else if (record.state === 'pending_restate') {
+      newState = 'restated';
+    }
+
+    const updatedRecord = { ...record, state: newState, updatedAt: getNowStr() };
+    await expressionRepo.updateTrainingRecord(updatedRecord);
+    set((s) => ({
+      records: s.records.map((r) => (r.id === recordId ? updatedRecord : r)),
+    }));
+  },
+
+  deferRecord: async (recordId, days = 1) => {
+    const record = get().records.find((r) => r.id === recordId);
+    if (!record) return;
+
+    const nextDate = new Date(record.nextReviewAt);
+    nextDate.setDate(nextDate.getDate() + days);
+
+    const updatedRecord = {
+      ...record,
+      nextReviewAt: nextDate.toISOString(),
+      updatedAt: getNowStr(),
+    };
     await expressionRepo.updateTrainingRecord(updatedRecord);
     set((s) => ({
       records: s.records.map((r) => (r.id === recordId ? updatedRecord : r)),

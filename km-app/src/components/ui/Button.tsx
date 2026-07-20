@@ -7,10 +7,10 @@ import {
   type TouchableOpacityProps,
   type ViewStyle,
 } from 'react-native';
-import { colors } from '../../theme';
+import { colors, tokens } from '../../theme';
 
 interface ButtonProps extends TouchableOpacityProps {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent';
   size?: 'sm' | 'md' | 'lg';
   loading?: boolean;
   children: React.ReactNode;
@@ -43,7 +43,8 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' ? colors.text.inverse : colors.primary}
+          color={variant === 'primary' || variant === 'danger' || variant === 'accent'
+            ? colors.text.inverse : colors.primary}
         />
       ) : (
         <Text
@@ -62,22 +63,29 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 10,
+    borderRadius: tokens.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
   },
   primary: {
     backgroundColor: colors.primary,
+    ...tokens.shadow.hardSm,
   },
   secondary: {
     backgroundColor: colors.primaryLight,
+    borderWidth: tokens.borderWidth.standard,
+    borderColor: colors.border,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   danger: {
     backgroundColor: colors.danger,
+  },
+  accent: {
+    backgroundColor: colors.accent,
+    ...tokens.shadow.hardSm,
   },
   size_sm: {
     paddingVertical: 6,
@@ -110,6 +118,9 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
   },
   text_danger: {
+    color: colors.text.inverse,
+  },
+  text_accent: {
     color: colors.text.inverse,
   },
   textSize_sm: { fontSize: 13 },

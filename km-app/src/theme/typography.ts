@@ -1,6 +1,43 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
+
+// ============================================================
+// Scholar's Desk — Typography System
+// ============================================================
+//
+// Display: KaiTi (iOS) / serif (Android) — used sparingly
+//   for titles, headers, and key numbers only.
+// Body: system sans-serif (PingFang SC / Roboto) — used for
+//   all functional UI, labels, body text, captions.
+// ============================================================
+
+export const fontFamily = Platform.select({
+  ios: 'KaiTi',
+  android: 'serif',
+  default: 'serif',
+});
 
 export const typography = StyleSheet.create({
+  // ── Display (serif/KaiTi) — titles & key moments ──
+  displayLarge: {
+    fontFamily,
+    fontSize: 32,
+    fontWeight: '700',
+    lineHeight: 40,
+  },
+  display: {
+    fontFamily,
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 32,
+  },
+  displaySmall: {
+    fontFamily,
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 28,
+  },
+
+  // ── Heading (sans-serif) — section headers ──
   h1: {
     fontSize: 28,
     fontWeight: '700',
@@ -16,6 +53,8 @@ export const typography = StyleSheet.create({
     fontWeight: '600',
     lineHeight: 26,
   },
+
+  // ── Body (sans-serif) — content ──
   body: {
     fontSize: 16,
     fontWeight: '400',
@@ -26,6 +65,8 @@ export const typography = StyleSheet.create({
     fontWeight: '400',
     lineHeight: 20,
   },
+
+  // ── Utility ──
   caption: {
     fontSize: 12,
     fontWeight: '400',
@@ -37,6 +78,7 @@ export const typography = StyleSheet.create({
     lineHeight: 20,
   },
   score: {
+    fontFamily,
     fontSize: 48,
     fontWeight: '700',
     lineHeight: 56,

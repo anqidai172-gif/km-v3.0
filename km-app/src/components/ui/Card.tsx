@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, type ViewStyle } from 'react-native';
-import { colors } from '../../theme';
+import { colors, tokens } from '../../theme';
 
 interface CardProps {
   children: React.ReactNode;
@@ -19,16 +19,12 @@ export function Card({ children, style, elevated = false }: CardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: tokens.radius.lg,
     padding: 16,
-    borderWidth: 1,
+    borderWidth: tokens.borderWidth.thin,
     borderColor: colors.border,
   },
   elevated: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    ...tokens.shadow.elevated,
   },
 });

@@ -22,6 +22,7 @@ interface KnowledgeState {
   getItemById: (id: string) => KnowledgeItem | undefined;
   getItemsByCategory: (categoryId: string) => KnowledgeItem[];
   getItemsByDate: (dateStr: string) => KnowledgeItem[];
+  getItemsByDateRange: (startDate: string | null, endDate: string | null) => KnowledgeItem[];
   getConfirmedItems: () => KnowledgeItem[];
   getItemDates: () => string[];
 }
@@ -109,6 +110,23 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
 
   getItemsByDate: (dateStr) =>
     get().items.filter((i) => i.createdAt.startsWith(dateStr)),
+
+  getItemsByDateRange: (startDate, endDate) => {
+    if (!startDate && !endDate) return get().items;
+    return get().items.filter((i) => {
+      const itemDate = i.createdAt.slice(0, 10);
+      if (startDate && endDate) {
+        return itemDate >= startDate && itemDate <= endDate;
+      }
+      if (startDate) {
+        return itemDate >= startDate;
+      }
+      if (endDate) {
+        return itemDate <= endDate;
+      }
+      return true;
+    });
+  },
 
   getConfirmedItems: () =>
     get().items.filter((i) => i.status === 'confirmed'),

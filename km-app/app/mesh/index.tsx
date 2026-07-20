@@ -1,3 +1,7 @@
+/**
+ * 知识星图 — Scholar's Desk 浅色主题
+ * 网状知识节点图谱，按分类分组展示
+ */
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -13,7 +17,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '../../src/theme';
+import { colors, tokens, fontFamily } from '../../src/theme';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
@@ -157,7 +161,7 @@ export default function MeshPage() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFFFFF" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
         {/* Stats Overview */}
@@ -201,6 +205,7 @@ export default function MeshPage() {
             {/* Node Grid */}
             <View style={styles.nodeGrid}>
               {categoryItems.map((item) => {
+                const catColor = getCategoryColor(item.categoryId);
                 const anim = animValues.current.get(item.id);
                 const translateY = anim
                   ? anim.interpolate({
@@ -225,13 +230,13 @@ export default function MeshPage() {
                       <View
                         style={[
                           styles.nodeCardTop,
-                          { backgroundColor: getCategoryColor(item.categoryId) + '18' },
+                          { backgroundColor: catColor + '15' },
                         ]}
                       >
                         <View
                           style={[
                             styles.nodeIndicator,
-                            { backgroundColor: getCategoryColor(item.categoryId) },
+                            { backgroundColor: catColor },
                           ]}
                         />
                         <Text style={styles.nodeTitle} numberOfLines={3}>
@@ -334,6 +339,7 @@ export default function MeshPage() {
 
                   {/* Action */}
                   <Button
+                    variant="accent"
                     onPress={() => handleStartTraining(selectedNode.item.id)}
                     style={styles.startTrainingBtn}
                   >
@@ -352,22 +358,26 @@ export default function MeshPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0A1A',
+    backgroundColor: colors.background,
   },
   header: {
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
     alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.text.primary,
+    fontFamily,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
+    color: colors.text.tertiary,
     marginTop: 4,
   },
   scrollView: {
@@ -383,10 +393,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 20,
     marginBottom: 20,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: tokens.radius.lg,
     paddingVertical: 14,
     paddingHorizontal: 16,
+    ...tokens.shadow.elevated,
   },
   statItem: {
     alignItems: 'center',
@@ -395,16 +406,16 @@ const styles = StyleSheet.create({
   statDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: tokens.radius.full,
   },
   statCount: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   statLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.5)',
+    color: colors.text.tertiary,
   },
   // Empty
   emptyState: {
@@ -419,12 +430,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
+    color: colors.text.secondary,
     marginBottom: 8,
+    fontFamily,
   },
   emptyDesc: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.4)',
+    color: colors.text.tertiary,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -442,17 +454,17 @@ const styles = StyleSheet.create({
   categoryDot: {
     width: 10,
     height: 10,
-    borderRadius: 5,
+    borderRadius: tokens.radius.full,
   },
   categoryTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: 'rgba(255,255,255,0.85)',
+    color: colors.text.primary,
     flex: 1,
   },
   categoryCount: {
     fontSize: 13,
-    color: 'rgba(255,255,255,0.4)',
+    color: colors.text.tertiary,
     fontWeight: '600',
   },
   // Node grid
@@ -463,11 +475,12 @@ const styles = StyleSheet.create({
   },
   nodeCard: {
     width: CARD_SIZE,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: tokens.radius.lg,
+    backgroundColor: colors.surface,
+    borderWidth: tokens.borderWidth.thin,
+    borderColor: colors.border,
     overflow: 'hidden',
+    ...tokens.shadow.elevated,
   },
   nodeCardInner: {
     flex: 1,
@@ -478,9 +491,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   nodeIndicator: {
-    width: 6,
+    width: 4,
     height: 24,
-    borderRadius: 3,
+    borderRadius: 2,
     position: 'absolute',
     left: 8,
     top: 12,
@@ -488,7 +501,7 @@ const styles = StyleSheet.create({
   nodeTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: 'rgba(255,255,255,0.9)',
+    color: colors.text.primary,
     lineHeight: 18,
     marginLeft: 6,
   },
@@ -496,11 +509,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: colors.divider,
   },
   nodePreview: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: colors.text.tertiary,
   },
   bottomSpacer: {
     height: 20,
@@ -512,12 +525,12 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(36,34,32,0.4)',
   },
   modalSheet: {
-    backgroundColor: '#141428',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: colors.surfaceElevated,
+    borderTopLeftRadius: tokens.radius.xl,
+    borderTopRightRadius: tokens.radius.xl,
     maxHeight: '70%',
     paddingBottom: 32,
   },
@@ -525,7 +538,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    backgroundColor: colors.divider,
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 16,
@@ -540,19 +553,20 @@ const styles = StyleSheet.create({
   modalCategoryTag: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: tokens.radius.lg,
   },
   modalCategoryText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.text.inverse,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.text.primary,
     paddingHorizontal: 20,
     marginBottom: 12,
+    fontFamily,
   },
   modalContent: {
     paddingHorizontal: 20,
@@ -560,19 +574,19 @@ const styles = StyleSheet.create({
   },
   modalBodyText: {
     fontSize: 14,
-    color: 'rgba(255,255,255,0.7)',
+    color: colors.text.secondary,
     lineHeight: 22,
     marginBottom: 12,
   },
   modalSource: {
     fontSize: 12,
-    color: '#4A90D9',
+    color: colors.accent,
     marginBottom: 16,
   },
   modalStats: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 12,
+    backgroundColor: colors.background,
+    borderRadius: tokens.radius.lg,
     padding: 14,
     marginBottom: 16,
   },
@@ -583,11 +597,11 @@ const styles = StyleSheet.create({
   modalStatValue: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.text.primary,
   },
   modalStatLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.4)',
+    color: colors.text.tertiary,
     marginTop: 4,
   },
   startTrainingBtn: {

@@ -184,3 +184,28 @@ App 启动后白屏，控制台有明确的 React 错误。
 - [ ] 搜索代码中 `useXxxStore(s => s.xxx())` — 任何以 `()` 结尾的 selector
 - [ ] 改为订阅原始数据 + `useMemo` 计算派生数据
 - [ ] `npx tsc --noEmit` 确保无类型错误
+
+---
+
+## 第四轮排查：传递依赖 Native Crash（2026-07-18）
+
+**症状**：所有页面简化后仍闪退，Metro 编译无错误。
+
+**排查**：
+1. 最小化所有页面为纯 View+Text → 依然崩溃 → 排除业务代码
+2. `npm ls react-native-reanimated` → `expo-router@57.0.4 → react-native-reanimated@4.5.2 → react-native-worklets@0.10.2`
+3. 手动 `rm -rf node_modules/react-native-{reanimated,worklets}` → 立即正常
+
+**根因**：expo-router v57 的传递依赖 reintroduced reanimated/worklets。Gesture-handler 的 `reanimatedWrapper.js` 运行时 `require('react-native-reanimated')` → 成功 → worklets 原生模块初始化 → Native Crash。当 require 失败时（包不存在），catch 降级到纯 JS 实现 → 正常工作。
+
+**永久修复**：
+1. 创建 `stubs/react-native-reanimated/`（不含原生模块，`useSharedValue: undefined` 触发 gesture-handler JS 降级）
+2. 创建 `stubs/react-native-worklets/`（空模块）
+3. `scripts/patch-reanimated.js` — postinstall 脚本自动替换
+4. `package.json` 添加 `"postinstall": "node scripts/patch-reanimated.js"`
+
+**新增教训**：
+17. **传递依赖也能导致 native crash** — 即使 package.json 不直接依赖，npm 仍会安装传递依赖
+18. **`npm ls <pkg>` 追踪依赖链** — 找到是谁引入的问题包
+19. **Postinstall stub 替换** — 不修改 lock file，每次 npm install 自动修复，是最可靠的永久方案
+20. **Gesture-handler 的 reanimatedWrapper 有 try/catch 降级** — stub 故意设置 `useSharedValue: undefined` 触发此路径，安全回退到 JS 实现

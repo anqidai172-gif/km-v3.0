@@ -1,1 +1,2 @@
 - [Expo App 闪退调试方法论](buglearning.md) — react-native-reanimated 导致 native crash 的完整排查流程与根因分析
+- [2026-07-18 闪退修复全记录](2026-07-18-expo-go-crash-fix.md) — 传递依赖原生模块崩溃 + 路由冲突 + Zustand 防无限循环的完整修复方案

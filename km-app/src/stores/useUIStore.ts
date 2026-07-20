@@ -6,7 +6,7 @@ interface UIState {
   activeSheet: string | null;
   isRecording: boolean;
   graphViewState: GraphViewState;
-  sidebarTimeFilter: string | null;
+  sidebarDateRange: { start: string | null; end: string | null };
 
   toggleSidebar: () => void;
   openSidebar: () => void;
@@ -15,7 +15,8 @@ interface UIState {
   closeSheet: () => void;
   setIsRecording: (recording: boolean) => void;
   setGraphViewState: (state: Partial<GraphViewState>) => void;
-  setSidebarTimeFilter: (dateStr: string | null) => void;
+  setSidebarDateRange: (start: string | null, end: string | null) => void;
+  clearSidebarDateRange: () => void;
 }
 
 const defaultGraphView: GraphViewState = {
@@ -29,7 +30,7 @@ export const useUIStore = create<UIState>((set) => ({
   activeSheet: null,
   isRecording: false,
   graphViewState: defaultGraphView,
-  sidebarTimeFilter: null,
+  sidebarDateRange: { start: null, end: null },
 
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   openSidebar: () => set({ sidebarOpen: true }),
@@ -41,5 +42,6 @@ export const useUIStore = create<UIState>((set) => ({
     set((s) => ({
       graphViewState: { ...s.graphViewState, ...state },
     })),
-  setSidebarTimeFilter: (dateStr) => set({ sidebarTimeFilter: dateStr }),
+  setSidebarDateRange: (start, end) => set({ sidebarDateRange: { start, end } }),
+  clearSidebarDateRange: () => set({ sidebarDateRange: { start: null, end: null } }),
 }));

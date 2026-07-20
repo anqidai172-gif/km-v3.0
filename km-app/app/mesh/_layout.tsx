@@ -8,7 +8,7 @@ export default function MeshLayout() {
         headerStyle: { backgroundColor: colors.surface },
         headerTintColor: colors.text.primary,
         headerTitleStyle: { fontWeight: '600' },
-        contentStyle: { backgroundColor: '#0A0A1A' },
+        contentStyle: { backgroundColor: colors.background },
       }}
     >
       <Stack.Screen

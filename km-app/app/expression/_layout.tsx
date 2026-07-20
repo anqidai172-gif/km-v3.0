@@ -22,7 +22,7 @@ export default function ExpressionLayout() {
       <Stack.Screen
         name="[itemId]"
         options={{
-          title: '对话训练',
+          headerShown: false,
           presentation: 'card',
           animation: 'slide_from_right',
         }}

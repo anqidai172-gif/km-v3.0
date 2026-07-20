@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import { colors } from '../../src/theme';
 
-export default function InputLayout() {
+export default function KnowledgeLayout() {
   return (
     <Stack
       screenOptions={{
@@ -14,13 +14,13 @@ export default function InputLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: '知识输入',
           headerShown: false,
         }}
       />
       <Stack.Screen
-        name="[draftId]"
+        name="[itemId]"
         options={{
+          title: '知识条目详情',
           headerShown: false,
           presentation: 'card',
           animation: 'slide_from_right',

@@ -21,10 +21,10 @@ import { parseContent } from '../../src/services/ai/parsingService';
 import type { InputDraft, ParseResult, DraftStatus } from '../../src/types';
 
 const DRAFT_STATUS_CONFIG: Record<DraftStatus, { label: string; color: string }> = {
-  parsing: { label: '解析中', color: '#FF9500' },
-  pending_review: { label: '待审核', color: '#4A90D9' },
-  confirmed: { label: '已确认', color: '#34C759' },
-  discarded: { label: '已丢弃', color: '#9CA3AF' },
+  parsing: { label: '解析中', color: colors.warning },
+  pending_review: { label: '待审核', color: colors.accent },
+  confirmed: { label: '已确认', color: colors.success },
+  discarded: { label: '已丢弃', color: colors.text.tertiary },
 };
 
 export default function InputPage() {
@@ -63,66 +63,93 @@ export default function InputPage() {
       return;
     }
 
-    // Detect if it's a URL
-    const isUrl = text.startsWith('http://') || text.startsWith('https://');
-
+    const isUrl = text.startsWith('http://') || text.startsWith('https');
     setIsParsing(true);
-    try {
-      // Create draft
-      const draft = await createDraft(isUrl ? 'url' : 'text', text);
 
-      // Try AI parsing
+    try {
+      // Step 1: Create draft
+      let draft: InputDraft;
       try {
-        const result = await parseContent({
+        draft = await createDraft(isUrl ? 'url' : 'text', text);
+      } catch (e: any) {
+        console.error('Create draft failed:', e?.message || e);
+        Alert.alert('错误', '创建草稿失败：' + (e?.message || '数据库异常，请重启应用'));
+        return;
+      }
+
+      // Step 2: Parse content (AI or fallback)
+      let result: ParseResult;
+      try {
+        result = await parseContent({
           inputType: isUrl ? 'url' : 'text',
           content: text,
           targetCategories: categories.map((c) => ({ id: c.id, name: c.name })),
         });
-        await updateParseResult(draft.id, result);
       } catch {
-        // If AI fails, show mock result for demo
-        const mockResult: ParseResult = {
+        // AI unavailable — use local mock result
+        result = {
           title: text.slice(0, 50) + (text.length > 50 ? '...' : ''),
           content: text,
-          suggestedCategoryId: categories[0]?.id || 'other',
+          suggestedCategoryId: categories[0]?.id || 'cat_other',
           suggestedCategoryName: categories[0]?.name || '其他',
           suggestedTags: [],
           confidence: 60,
           sourceSummary: text.slice(0, 100),
-          extractedKeyPoints: ['AI 服务未配置，使用模拟结果'],
+          extractedKeyPoints: ['AI 服务未配置，使用本地解析'],
         };
-        await updateParseResult(draft.id, mockResult);
+      }
+
+      // Step 3: Save parse result to draft
+      try {
+        await updateParseResult(draft.id, result);
+      } catch (e: any) {
+        console.error('Update parse result failed:', e?.message || e);
+        // Draft exists but parse result save failed — still show success
+        Alert.alert('部分成功', '草稿已创建，但解析结果保存失败。请在草稿列表中手动查看。');
+        setInputText('');
+        return;
       }
 
       setInputText('');
       Alert.alert('解析完成', '请查看草稿列表，确认或丢弃解析结果');
-    } catch (error) {
-      Alert.alert('错误', '解析失败，请重试');
-      console.error('Parse error:', error);
+    } catch (error: any) {
+      Alert.alert('错误', '意外错误：' + (error?.message || '请重试'));
+      console.error('Submit error:', error);
     } finally {
       setIsParsing(false);
     }
   };
 
   const handleConfirm = async (draft: InputDraft) => {
-    if (!draft.parseResult) return;
+    if (!draft.parseResult) {
+      Alert.alert('提示', '该草稿尚未解析完成，无法确认');
+      return;
+    }
+    const pr = draft.parseResult;
+
+    // Validate category — fallback to 'cat_other' if not found
+    const catId = (categories.length > 0 && categories.some(c => c.id === pr.suggestedCategoryId))
+      ? pr.suggestedCategoryId
+      : (categories[0]?.id || 'cat_other');
+
     try {
       const newItem = await addItem({
-        categoryId: draft.parseResult.suggestedCategoryId,
-        title: draft.parseResult.title,
-        content: draft.parseResult.content,
-        contentPreview: draft.parseResult.content.slice(0, 150),
+        categoryId: catId,
+        title: pr.title || draft.rawInput.slice(0, 50),
+        content: pr.content || draft.rawInput,
+        contentPreview: (pr.content || draft.rawInput).slice(0, 150),
         sourceURL: draft.inputType === 'url' ? draft.rawInput : undefined,
         sourceType: draft.inputType,
-        tags: draft.parseResult.suggestedTags,
-        aiSummary: draft.parseResult.sourceSummary,
-        aiClassificationScore: draft.parseResult.confidence,
+        tags: pr.suggestedTags || [],
+        aiSummary: pr.sourceSummary || '',
+        aiClassificationScore: pr.confidence ?? 50,
         status: 'confirmed',
       });
       await confirmDraft(draft.id, newItem.id);
-      Alert.alert('✅ 已确认', '知识条目已添加到知识库，可在表达训练中开始练习');
-    } catch (error) {
-      Alert.alert('错误', '确认失败，请重试');
+      Alert.alert('✅ 已确认', '知识条目已添加到知识库，可在首页开始训练');
+    } catch (error: any) {
+      console.error('Confirm failed:', error?.message || error);
+      Alert.alert('确认失败', error?.message || '数据库异常，请重启应用后重试');
     }
   };
 

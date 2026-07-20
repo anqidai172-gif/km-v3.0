@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors } from '../../theme';
+import { colors, tokens } from '../../theme';
 
 interface BadgeProps {
   label: string;
@@ -39,7 +39,7 @@ export function Badge({ label, color, variant = 'filled', size = 'sm' }: BadgePr
         styles.base,
         styles[`size_${size}`],
         variant === 'filled'
-          ? { backgroundColor: badgeColor + '20' }
+          ? { backgroundColor: badgeColor + '18' }
           : { borderWidth: 1, borderColor: badgeColor },
       ]}
     >
@@ -47,7 +47,7 @@ export function Badge({ label, color, variant = 'filled', size = 'sm' }: BadgePr
         style={[
           styles.text,
           styles[`textSize_${size}`],
-          { color: variant === 'filled' ? badgeColor : badgeColor },
+          { color: badgeColor },
         ]}
       >
         {displayLabel}
@@ -58,7 +58,7 @@ export function Badge({ label, color, variant = 'filled', size = 'sm' }: BadgePr
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: 6,
+    borderRadius: tokens.radius.sm,
     alignSelf: 'flex-start',
   },
   size_sm: {
