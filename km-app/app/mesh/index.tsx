@@ -21,6 +21,7 @@ import { colors, tokens, fontFamily } from '../../src/theme';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
+import { ConstellationIcon, PaperclipIcon, TargetIcon } from '../../src/components/ui/ExpressionIcons';
 import { useKnowledgeStore } from '../../src/stores';
 import { useExpressionStore } from '../../src/stores';
 import type { KnowledgeItem, KnowledgeCategory, TrainingRecord } from '../../src/types';
@@ -180,7 +181,7 @@ export default function MeshPage() {
         {/* Empty State */}
         {confirmedItems.length === 0 && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🌌</Text>
+            <ConstellationIcon size={56} color={colors.text.tertiary} />
             <Text style={styles.emptyTitle}>知识星系尚未形成</Text>
             <Text style={styles.emptyDesc}>
               去「知识输入」添加内容并确认后，知识节点将在此汇聚成星系图谱
@@ -310,7 +311,10 @@ export default function MeshPage() {
                   <Text style={styles.modalBodyText}>{selectedNode.item.content}</Text>
 
                   {selectedNode.item.sourceURL && (
-                    <Text style={styles.modalSource}>📎 {selectedNode.item.sourceURL}</Text>
+                    <View style={styles.modalSourceRow}>
+                      <PaperclipIcon size={12} color={colors.accent} />
+                      <Text style={styles.modalSource}> {selectedNode.item.sourceURL}</Text>
+                    </View>
                   )}
 
                   {/* Stats */}
@@ -343,7 +347,8 @@ export default function MeshPage() {
                     onPress={() => handleStartTraining(selectedNode.item.id)}
                     style={styles.startTrainingBtn}
                   >
-                    🎯 开始训练
+                    <TargetIcon size={14} color={colors.text.inverse} />
+                    {' '}开始训练
                   </Button>
                 </ScrollView>
               </>
@@ -366,8 +371,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: tokens.borderWidth.hairline,
+    borderBottomColor: '#D4CDC0',
   },
   headerTitle: {
     fontSize: 20,
@@ -397,7 +402,13 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    ...tokens.shadow.elevated,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
+    shadowColor: '#171513',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
   },
   statItem: {
     alignItems: 'center',
@@ -419,13 +430,10 @@ const styles = StyleSheet.create({
   },
   // Empty
   emptyState: {
-    alignItems: 'center',
+    alignItems:'center',
     paddingTop: 60,
     paddingHorizontal: 30,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    gap: 16,
   },
   emptyTitle: {
     fontSize: 18,
@@ -477,10 +485,14 @@ const styles = StyleSheet.create({
     width: CARD_SIZE,
     borderRadius: tokens.radius.lg,
     backgroundColor: colors.surface,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.border,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
     overflow: 'hidden',
-    ...tokens.shadow.elevated,
+    shadowColor: '#171513',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
   },
   nodeCardInner: {
     flex: 1,
@@ -508,8 +520,8 @@ const styles = StyleSheet.create({
   nodeCardBottom: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    borderTopWidth: tokens.borderWidth.hairline,
+    borderTopColor: '#D4CDC0',
   },
   nodePreview: {
     fontSize: 11,
@@ -528,7 +540,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(36,34,32,0.4)',
   },
   modalSheet: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.surface,
     borderTopLeftRadius: tokens.radius.xl,
     borderTopRightRadius: tokens.radius.xl,
     maxHeight: '70%',
@@ -538,7 +550,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.divider,
+    backgroundColor: '#D4CDC0',
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 16,
@@ -578,10 +590,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 12,
   },
+  modalSourceRow: { flexDirection:'row', alignItems:'flex-start', marginBottom:16 },
   modalSource: {
     fontSize: 12,
     color: colors.accent,
-    marginBottom: 16,
+    flex: 1,
   },
   modalStats: {
     flexDirection: 'row',

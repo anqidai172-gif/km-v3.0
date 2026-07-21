@@ -1,40 +1,44 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Animated,
-  Modal,
-  Pressable,
-  Dimensions,
   RefreshControl,
   TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format, addDays, isToday } from 'date-fns';
+import Svg, { Path } from 'react-native-svg';
 import { colors, tokens, fontFamily } from '../../src/theme';
 import { ProgressBar } from '../../src/components/expression/ProgressBar';
 import { SwipeableTaskCard } from '../../src/components/expression/SwipeableTaskCard';
-import { SidebarContent } from '../../src/components/sidebar/SidebarContent';
+import {
+  renderExpressionIcon,
+  ChevronLeftIcon,
+  ChartIcon,
+  LightningIcon,
+  SearchIcon,
+  CloseIcon,
+  HourglassIcon,
+  SparkleIcon,
+  EmptyTrayIcon,
+  type ExpressionIconName,
+} from '../../src/components/ui/ExpressionIcons';
 import { useExpressionStore } from '../../src/stores';
 import { useKnowledgeStore } from '../../src/stores';
-import { useUIStore } from '../../src/stores';
 import type { TrainingRecord, TrainingState, KnowledgeCategory } from '../../src/types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const SIDEBAR_WIDTH = SCREEN_WIDTH * 0.82;
-
-// ── Date range for the switcher ──────────────────────────
-const DATE_RANGE = 7; // ±7 days around today
+// ── Date window config ────────────────────────────────────
+const VISIBLE_DATES = 4;
 
 // ── Helper: build date list ──────────────────────────────
-function buildDateList(today: Date): Date[] {
+function buildDateList(start: Date): Date[] {
   const list: Date[] = [];
-  for (let i = -DATE_RANGE; i <= DATE_RANGE; i++) {
-    list.push(addDays(today, i));
+  for (let i = 0; i < VISIBLE_DATES; i++) {
+    list.push(addDays(start, i));
   }
   return list;
 }
@@ -42,30 +46,26 @@ function buildDateList(today: Date): Date[] {
 // ── Tab definitions ──────────────────────────────────────
 type ListTab = 'pending' | 'completed';
 
-const TAB_CONFIG: Record<ListTab, { label: string; icon: string; states: TrainingState[] }> = {
+const TAB_CONFIG: Record<ListTab, { label: string; icon: ExpressionIconName; states: TrainingState[] }> = {
   pending: {
     label: '待复述列表',
-    icon: '🔥',
+    icon: 'flame',
     states: ['pending_retell', 'pending_restate'],
   },
   completed: {
     label: '已复述列表',
-    icon: '📂',
+    icon: 'archive',
     states: ['retold', 'restated'],
   },
 };
 
 // ── Sort modes ───────────────────────────────────────────
-type SortMode = 'priority' | 'name' | 'score';
+type SortMode = 'created' | 'score';
 
 const SORT_LABELS: Record<SortMode, string> = {
-  priority: '按遗忘曲线排序',
-  name: '按名称排序',
-  score: '按分数排序',
+  created: '按创建时间',
+  score: '按分数高低',
 };
-
-// ── Chinese weekday names ────────────────────────────────
-const WEEKDAY_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
 // ── Helper: format date chip label ───────────────────────
 function formatDateChip(d: Date): string {
@@ -87,49 +87,21 @@ export default function ExpressionPage() {
   const items = useKnowledgeStore((s) => s.items);
   const categories = useKnowledgeStore((s) => s.categories);
   const loadAll = useKnowledgeStore((s) => s.loadAll);
-  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
-  const openSidebar = useUIStore((s) => s.openSidebar);
-  const closeSidebar = useUIStore((s) => s.closeSidebar);
-
   // ── Local UI state ────────────────────────────────────
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
   const [activeTab, setActiveTab] = useState<ListTab>('pending');
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortMode, setSortMode] = useState<SortMode>('priority');
+  const [sortMode, setSortMode] = useState<SortMode>('created');
+  const [menuOpen, setMenuOpen] = useState<'status' | 'sort' | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // ── Date list & scroller ──────────────────────────────
-  const dateList = useMemo(() => buildDateList(today), [today]);
-  const dateScrollerRef = useRef<ScrollView>(null);
+  // ── Date window ───────────────────────────────────────
+  const [windowStart, setWindowStart] = useState<Date>(() => addDays(today, -1));
+  const dateList = useMemo(() => buildDateList(windowStart), [windowStart]);
 
-  // Scroll to today on mount
-  useEffect(() => {
-    const idx = dateList.findIndex((d) => format(d, 'yyyy-MM-dd') === todayStr);
-    if (idx > 0 && dateScrollerRef.current) {
-      const offset = idx * 72 - SCREEN_WIDTH / 2 + 36; // center today
-      setTimeout(() => {
-        dateScrollerRef.current?.scrollTo({ x: Math.max(0, offset), animated: false });
-      }, 300);
-    }
-  }, []);
-
-  // ── Sidebar animation ─────────────────────────────────
-  const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
-  const overlayAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (sidebarOpen) {
-      Animated.parallel([
-        Animated.timing(slideAnim, { toValue: 0, duration: 280, useNativeDriver: true }),
-        Animated.timing(overlayAnim, { toValue: 1, duration: 280, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideAnim, { toValue: -SIDEBAR_WIDTH, duration: 220, useNativeDriver: true }),
-        Animated.timing(overlayAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [sidebarOpen]);
+  // ── Arrow handlers ────────────────────────────────────
+  const handlePrev = () => setWindowStart((prev) => addDays(prev, -VISIBLE_DATES));
+  const handleNext = () => setWindowStart((prev) => addDays(prev, VISIBLE_DATES));
 
   // ── Data loading ──────────────────────────────────────
   useEffect(() => {
@@ -191,16 +163,12 @@ export default function ExpressionPage() {
 
     // Sort
     filtered.sort((a, b) => {
-      const itemA = items.find((i) => i.id === a.knowledgeItemId);
-      const itemB = items.find((i) => i.id === b.knowledgeItemId);
       switch (sortMode) {
-        case 'name':
-          return (itemA?.title ?? '').localeCompare(itemB?.title ?? '');
         case 'score':
           return (b.bestScore ?? b.currentScore ?? -1) - (a.bestScore ?? a.currentScore ?? -1);
-        case 'priority':
+        case 'created':
         default:
-          return b.priority - a.priority;
+          return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
       }
     });
 
@@ -214,6 +182,10 @@ export default function ExpressionPage() {
 
   // ── Handlers ───────────────────────────────────────────
   const handleTaskPress = (record: TrainingRecord) => {
+    router.push(`/knowledge/${record.knowledgeItemId}`);
+  };
+
+  const handleStartTrain = (record: TrainingRecord) => {
     router.push(`/expression/${record.knowledgeItemId}`);
   };
 
@@ -226,9 +198,7 @@ export default function ExpressionPage() {
   };
 
   const handleSortToggle = () => {
-    const modes: SortMode[] = ['priority', 'name', 'score'];
-    const idx = modes.indexOf(sortMode);
-    setSortMode(modes[(idx + 1) % modes.length]);
+    setSortMode((prev) => (prev === 'created' ? 'score' : 'created'));
   };
 
   const isSelectedToday = selectedDate === todayStr;
@@ -243,26 +213,29 @@ export default function ExpressionPage() {
           style={styles.headerBtn}
           activeOpacity={0.7}
         >
-          <Text style={styles.backIcon}>◀</Text>
+          <ChevronLeftIcon size={18} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>今日复述训练</Text>
-        <TouchableOpacity onPress={openSidebar} style={styles.headerBtn} activeOpacity={0.7}>
-          <Text style={styles.menuIcon}>☰</Text>
-        </TouchableOpacity>
+        <View style={styles.headerBtn} />
       </View>
 
       {/* ═══ Date Switcher ═══ */}
       <View style={styles.dateSwitcher}>
-        <ScrollView
-          ref={dateScrollerRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dateScrollContent}
+        {/* Left arrow */}
+        <TouchableOpacity
+          style={styles.dateArrow}
+          onPress={handlePrev}
+          activeOpacity={0.5}
         >
+          <Text style={styles.dateArrowText}>{'<<'}</Text>
+        </TouchableOpacity>
+
+        {/* Date row — exactly 4 dates */}
+        <View style={styles.dateRow}>
           {dateList.map((d) => {
             const ds = format(d, 'yyyy-MM-dd');
             const active = ds === selectedDate;
-            const today_ = isToday(d);
+            const isTodayDate = isToday(d);
             const hasRecords = records.some((r) => {
               const rd = r.nextReviewAt?.slice(0, 10) ?? '';
               const cd = r.createdAt?.slice(0, 10) ?? '';
@@ -272,23 +245,50 @@ export default function ExpressionPage() {
             return (
               <TouchableOpacity
                 key={ds}
-                style={[styles.dateChip, active && styles.dateChipActive]}
+                style={styles.dateItem}
                 onPress={() => handleDateSelect(ds)}
-                activeOpacity={0.7}
+                activeOpacity={0.6}
               >
-                <Text style={[styles.dateChipLabel, active && styles.dateChipLabelActive]}>
-                  {formatDateChip(d)}
-                </Text>
-                <Text style={[styles.dateChipSub, active && styles.dateChipSubActive]}>
-                  {today_ ? '今天' : WEEKDAY_NAMES[d.getDay()]}
-                </Text>
-                {hasRecords && (
-                  <View style={[styles.dateDot, active && styles.dateDotActive]} />
-                )}
+                <View style={styles.dateItemRow}>
+                  <Text style={[styles.bracket, active && styles.bracketActive]}>[</Text>
+                  <Text
+                    style={[
+                      styles.dateItemText,
+                      active && styles.dateItemTextActive,
+                      !active && isTodayDate && styles.dateItemTextToday,
+                    ]}
+                  >
+                    {formatDateChip(d)}
+                  </Text>
+                  <Text style={[styles.bracket, active && styles.bracketActive]}>]</Text>
+                </View>
+                <View style={styles.pencilDotWrap}>
+                  {hasRecords && (
+                    <Svg width={7} height={7} viewBox="0 0 8 8">
+                      <Path
+                        d="M4 1.2 C5.2 0.8 6.1 1.6 6.4 2.8 C6.8 4.2 6.2 5.6 5 6.2 C3.6 6.8 2.2 6 1.8 4.8 C1.4 3.4 2.2 1.8 4 1.2Z"
+                        stroke={active ? '#8B6918' : '#9A948A'}
+                        strokeWidth={0.7}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill={active ? 'rgba(154,123,56,0.45)' : 'rgba(154,148,138,0.42)'}
+                      />
+                    </Svg>
+                  )}
+                </View>
               </TouchableOpacity>
             );
           })}
-        </ScrollView>
+        </View>
+
+        {/* Right arrow */}
+        <TouchableOpacity
+          style={styles.dateArrow}
+          onPress={handleNext}
+          activeOpacity={0.5}
+        >
+          <Text style={styles.dateArrowText}>{'>>'}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ═══ Main Scroll Content ═══ */}
@@ -303,74 +303,73 @@ export default function ExpressionPage() {
         {/* ── Overview Card ── */}
         <View style={styles.overviewCard}>
           <View style={styles.overviewHeader}>
-            <Text style={styles.overviewIcon}>📊</Text>
+            <ChartIcon size={18} />
             <Text style={styles.overviewTitle}>
               {isSelectedToday ? '今日复述概览' : `${selectedDate.slice(5)} 复述概览`}
             </Text>
           </View>
 
-          {/* Progress */}
-          <View style={styles.progressSection}>
-            <View style={styles.progressLabelRow}>
-              <Text style={styles.progressLabel}>已完成</Text>
-              <Text style={styles.progressPercent}>{overview.progress}%</Text>
+          {/* Progress — single row: label / bar / percent */}
+          <View style={styles.progressRow}>
+            <Text style={styles.progressLabel}>已完成</Text>
+            <View style={styles.progressBarWrap}>
+              <ProgressBar progress={overview.progress} height={16} />
             </View>
-            <ProgressBar progress={overview.progress} height={10} />
+            <Text style={styles.progressPercent}>{overview.progress}%</Text>
           </View>
 
           {/* Stats row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>⚡ +{overview.score}</Text>
+              <View style={styles.statValueRow}>
+                <LightningIcon size={16} color={colors.primary} />
+                <Text style={styles.statValue}>+{overview.score}</Text>
+              </View>
               <Text style={styles.statLabel}>表达力积分</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={styles.statDivider}>
+              <Svg width={2} height={32} viewBox="0 0 2 32">
+                <Path
+                  d="M1 0 Q0.5 8 1.3 16 Q0.6 24 1 32"
+                  stroke="#D4CDC0"
+                  strokeWidth={0.6}
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity={0.5}
+                />
+              </Svg>
+            </View>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{overview.pending}</Text>
               <Text style={styles.statLabel}>待复述</Text>
             </View>
-            <View style={styles.statDivider} />
+            <View style={styles.statDivider}>
+              <Svg width={2} height={32} viewBox="0 0 2 32">
+                <Path
+                  d="M1 0 Q0.5 8 1.3 16 Q0.6 24 1 32"
+                  stroke="#D4CDC0"
+                  strokeWidth={0.6}
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity={0.5}
+                />
+              </Svg>
+            </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.success }]}>{overview.completed}</Text>
+              <Text style={styles.statValue}>{overview.completed}</Text>
               <Text style={styles.statLabel}>已复述</Text>
             </View>
           </View>
         </View>
 
-        {/* ── Tab Switcher ── */}
-        <View style={styles.tabRow}>
-          {(['pending', 'completed'] as ListTab[]).map((tab) => {
-            const cfg = TAB_CONFIG[tab];
-            const count = tab === 'pending' ? pendingRecords.length : completedRecords.length;
-            const isActive = activeTab === tab;
-            return (
-              <TouchableOpacity
-                key={tab}
-                style={[styles.tab, isActive && styles.tabActive]}
-                onPress={() => setActiveTab(tab)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.tabIcon}>{cfg.icon}</Text>
-                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
-                  {cfg.label}
-                </Text>
-                <View style={[styles.tabCount, isActive && styles.tabCountActive]}>
-                  <Text style={[styles.tabCountText, isActive && styles.tabCountTextActive]}>
-                    {count}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* ── Search & Filter Bar ── */}
-        <View style={styles.filterBar}>
-          <View style={styles.searchWrap}>
-            <Text style={styles.searchIcon}>🔍</Text>
+        {/* ── Toolbar: search / status dropdown / sort dropdown (single row) ── */}
+        <View style={styles.toolbar}>
+          {/* Search input */}
+          <View style={styles.searchInline}>
+            <SearchIcon size={13} />
             <TextInput
               style={styles.searchInput}
-              placeholder="输入知识点搜索..."
+              placeholder="搜索知识点..."
               placeholderTextColor={colors.text.tertiary}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -378,27 +377,86 @@ export default function ExpressionPage() {
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
-                <Text style={styles.clearIcon}>✕</Text>
+                <CloseIcon size={12} />
               </TouchableOpacity>
             )}
           </View>
-          <TouchableOpacity
-            style={styles.sortBtn}
-            onPress={handleSortToggle}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.sortIcon}>⏳</Text>
-            <Text style={styles.sortLabel}>{SORT_LABELS[sortMode]}</Text>
-            <Text style={styles.sortToggle}>⇅</Text>
-          </TouchableOpacity>
+
+          {/* Status filter dropdown */}
+          <View style={styles.dropdownWrap}>
+            <TouchableOpacity
+              style={[styles.iconBtn, activeTab === 'pending' && styles.iconBtnActive]}
+              onPress={() => setMenuOpen(menuOpen === 'status' ? null : 'status')}
+              activeOpacity={0.7}
+            >
+              {renderExpressionIcon(
+                activeTab === 'pending' ? 'flame' : 'archive',
+                14,
+                activeTab === 'pending' ? colors.text.inverse : colors.text.primary,
+              )}
+            </TouchableOpacity>
+            {menuOpen === 'status' && (
+              <View style={styles.dropdown}>
+                <TouchableOpacity
+                  style={[styles.dropdownItem, activeTab === 'pending' && styles.dropdownItemActive]}
+                  onPress={() => { setActiveTab('pending'); setMenuOpen(null); }}
+                  activeOpacity={0.7}
+                >
+                  {renderExpressionIcon('flame', 13, activeTab === 'pending' ? colors.text.inverse : colors.text.primary)}
+                  <Text style={[styles.dropdownItemText, activeTab === 'pending' && styles.dropdownItemTextActive]}>
+                    待复述 ({pendingRecords.length})
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.dropdownItem, activeTab === 'completed' && styles.dropdownItemActive]}
+                  onPress={() => { setActiveTab('completed'); setMenuOpen(null); }}
+                  activeOpacity={0.7}
+                >
+                  {renderExpressionIcon('archive', 13, activeTab === 'completed' ? colors.text.inverse : colors.text.primary)}
+                  <Text style={[styles.dropdownItemText, activeTab === 'completed' && styles.dropdownItemTextActive]}>
+                    已复述 ({completedRecords.length})
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Sort dropdown */}
+          <View style={styles.dropdownWrap}>
+            <TouchableOpacity
+              style={styles.iconBtn}
+              onPress={() => setMenuOpen(menuOpen === 'sort' ? null : 'sort')}
+              activeOpacity={0.7}
+            >
+              <HourglassIcon size={14} />
+            </TouchableOpacity>
+            {menuOpen === 'sort' && (
+              <View style={styles.dropdown}>
+                {(['created', 'score'] as SortMode[]).map((mode) => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[styles.dropdownItem, sortMode === mode && styles.dropdownItemActive]}
+                    onPress={() => { setSortMode(mode); setMenuOpen(null); }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.dropdownItemText, sortMode === mode && styles.dropdownItemTextActive]}>
+                      {SORT_LABELS[mode]}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         </View>
 
         {/* ── Task List ── */}
         {visibleRecords.length === 0 && !loading && (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>
-              {activeTab === 'pending' ? '🎉' : '📭'}
-            </Text>
+            {activeTab === 'pending' ? (
+              <SparkleIcon size={48} />
+            ) : (
+              <EmptyTrayIcon size={48} />
+            )}
             <Text style={styles.emptyTitle}>
               {searchQuery
                 ? '未找到匹配的知识点'
@@ -428,6 +486,7 @@ export default function ExpressionPage() {
               item={item}
               category={category}
               onPress={() => handleTaskPress(record)}
+              onTrain={() => handleStartTrain(record)}
               onDefer={() => handleDefer(record)}
               swipeDisabled={!isPending}
             />
@@ -437,24 +496,6 @@ export default function ExpressionPage() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {/* ═══ Sidebar Modal ═══ */}
-      <Modal
-        visible={sidebarOpen}
-        animationType="none"
-        transparent
-        onRequestClose={closeSidebar}
-      >
-        <View style={styles.sidebarOverlay}>
-          <Animated.View style={[styles.backdrop, { opacity: overlayAnim }]}>
-            <Pressable style={styles.backdropPress} onPress={closeSidebar} />
-          </Animated.View>
-          <Animated.View
-            style={[styles.sidebarPanel, { transform: [{ translateX: slideAnim }] }]}
-          >
-            <SidebarContent />
-          </Animated.View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -475,8 +516,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     backgroundColor: colors.surface,
-    borderBottomWidth: tokens.borderWidth.thin,
-    borderBottomColor: colors.border,
+    borderBottomWidth: tokens.borderWidth.hairline,
+    borderBottomColor: '#D4CDC0',
   },
   headerBtn: {
     width: 40,
@@ -485,72 +526,80 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backIcon: {
-    fontSize: 18,
-    color: colors.text.primary,
-  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text.primary,
     letterSpacing: 2,
   },
-  menuIcon: {
-    fontSize: 22,
-    color: colors.text.primary,
-  },
-
   // ── Date Switcher ──
   dateSwitcher: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderBottomWidth: tokens.borderWidth.hairline,
-    borderBottomColor: colors.divider,
-    paddingVertical: 8,
+    borderBottomColor: '#D4CDC0',
+    paddingVertical: 6,
   },
-  dateScrollContent: {
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  dateChip: {
+  dateArrow: {
+    width: 36,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: tokens.radius.lg,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.divider,
-    backgroundColor: colors.surfaceLight,
-    minWidth: 72,
-    gap: 2,
   },
-  dateChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  dateChipLabel: {
-    fontSize: 13,
+  dateArrowText: {
+    fontSize: 16,
     fontWeight: '600',
+    color: colors.text.tertiary,
+    letterSpacing: -2,
+    lineHeight: 22,
+  },
+  dateRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dateItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 2,
+    gap: 3,
+  },
+  dateItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bracket: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'transparent',
+  },
+  bracketActive: {
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  dateItemText: {
+    fontSize: 15,
+    fontWeight: '500',
     color: colors.text.primary,
   },
-  dateChipLabelActive: {
-    color: colors.text.inverse,
+  dateItemTextActive: {
+    color: colors.accent,
+    fontWeight: '700',
   },
-  dateChipSub: {
-    fontSize: 11,
-    color: colors.text.tertiary,
+  dateItemTextToday: {
+    fontWeight: '700',
+    color: colors.primary,
+    textDecorationLine: 'underline',
+    textDecorationColor: colors.accent,
+    textDecorationStyle: 'solid',
   },
-  dateChipSubActive: {
-    color: 'rgba(250,246,238,0.7)',
-  },
-  dateDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.accent,
-    marginTop: 2,
-  },
-  dateDotActive: {
-    backgroundColor: colors.accent,
+  pencilDotWrap: {
+    height: 7,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // ── Scroll ──
@@ -566,16 +615,15 @@ const styles = StyleSheet.create({
   overviewCard: {
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.lg,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.border,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
     padding: 16,
     marginBottom: 16,
-    // Hard letterpress shadow
     shadowColor: colors.primary,
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 0.12,
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 0,
-    elevation: 3,
+    elevation: 2,
   },
   overviewHeader: {
     flexDirection: 'row',
@@ -583,29 +631,27 @@ const styles = StyleSheet.create({
     gap: 6,
     marginBottom: 14,
   },
-  overviewIcon: {
-    fontSize: 18,
-  },
   overviewTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: colors.text.primary,
   },
-  progressSection: {
+  progressRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 14,
   },
-  progressLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
   progressLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: colors.text.secondary,
     fontWeight: '500',
   },
+  progressBarWrap: {
+    flex: 1,
+  },
   progressPercent: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.primary,
   },
@@ -618,6 +664,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
   },
+  statValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
   statValue: {
     fontSize: 18,
     fontWeight: '700',
@@ -629,131 +680,95 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
   },
   statDivider: {
-    width: 1,
+    width: 2,
     height: 32,
-    backgroundColor: colors.divider,
-  },
-
-  // ── Tabs ──
-  tabRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: tokens.radius.md,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.divider,
-    backgroundColor: colors.surfaceLight,
+  },
+
+  // ── Toolbar: search / status dropdown / sort dropdown ──
+  toolbar: {
+    flexDirection: 'row',
     gap: 6,
-  },
-  tabActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  tabIcon: {
-    fontSize: 14,
-  },
-  tabLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text.secondary,
-  },
-  tabLabelActive: {
-    color: colors.text.inverse,
-  },
-  tabCount: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: tokens.radius.full,
-    minWidth: 22,
-    height: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
-  },
-  tabCountActive: {
-    backgroundColor: 'rgba(250,246,238,0.2)',
-  },
-  tabCountText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.text.primary,
-  },
-  tabCountTextActive: {
-    color: colors.text.inverse,
-  },
-
-  // ── Filter Bar ──
-  filterBar: {
-    flexDirection: 'row',
-    gap: 8,
     marginBottom: 14,
+    alignItems: 'flex-start',
   },
-  searchWrap: {
+  searchInline: {
     flex: 1,
+    height: 38,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.md,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.border,
-    paddingHorizontal: 12,
-    gap: 8,
-  },
-  searchIcon: {
-    fontSize: 14,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
+    paddingHorizontal: 10,
+    gap: 6,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.text.primary,
-    paddingVertical: 10,
+    paddingVertical: 0,
   },
-  clearIcon: {
-    fontSize: 14,
-    color: colors.text.tertiary,
-    padding: 4,
-  },
-  sortBtn: {
-    flexDirection: 'row',
+  iconBtn: {
+    width: 38,
+    height: 38,
     alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.md,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.border,
-    paddingHorizontal: 10,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
+  },
+  iconBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  dropdownWrap: {
+    position: 'relative',
+  },
+  dropdown: {
+    position: 'absolute',
+    top: 42,
+    right: 0,
+    minWidth: 150,
+    backgroundColor: colors.surface,
+    borderRadius: tokens.radius.md,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
+    paddingVertical: 4,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 2,
+    zIndex: 100,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 10,
-    gap: 4,
+    paddingHorizontal: 14,
+    gap: 8,
   },
-  sortIcon: {
-    fontSize: 12,
+  dropdownItemActive: {
+    backgroundColor: colors.primaryLight,
   },
-  sortLabel: {
-    fontSize: 12,
-    color: colors.text.secondary,
+  dropdownItemText: {
+    fontSize: 13,
+    color: colors.text.primary,
     fontWeight: '500',
-    maxWidth: 80,
   },
-  sortToggle: {
-    fontSize: 14,
-    color: colors.text.tertiary,
+  dropdownItemTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
-
   // ── Empty state ──
   emptyState: {
     alignItems: 'center',
     paddingTop: 60,
     paddingHorizontal: 40,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
   },
   emptyTitle: {
     fontSize: 17,
@@ -772,33 +787,4 @@ const styles = StyleSheet.create({
     height: 24,
   },
 
-  // ── Sidebar ──
-  sidebarOverlay: {
-    flex: 1,
-    flexDirection: 'row',
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(36,34,32,0.4)',
-  },
-  backdropPress: {
-    flex: 1,
-  },
-  sidebarPanel: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    width: SIDEBAR_WIDTH,
-    backgroundColor: colors.primary,
-    elevation: 10,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 4, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-  },
 });

@@ -1,26 +1,21 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
+  View, Text, ScrollView, TextInput, TouchableOpacity,
+  StyleSheet, Alert, Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fontFamily } from '../../src/theme';
-import { useKnowledgeStore } from '../../src/stores';
-import { useExpressionStore } from '../../src/stores';
-import { Badge } from '../../src/components/ui/Badge';
-
-type EditableSection = 'title' | 'summary' | 'input' | 'parseResult' | null;
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { format } from 'date-fns';
+import { colors, tokens, fontFamily } from '../../src/theme';
+import {
+  ChevronLeftIcon, TrashIcon, PencilIcon, RefreshIcon,
+  ChevronDownIcon, CalendarIcon, CheckIcon, MicIcon,
+} from '../../src/components/ui/ExpressionIcons';
+import { useKnowledgeStore, useExpressionStore } from '../../src/stores';
 
 export default function KnowledgeDetailPage() {
   const { itemId } = useLocalSearchParams<{ itemId: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const items = useKnowledgeStore((s) => s.items);
   const categories = useKnowledgeStore((s) => s.categories);
   const updateItem = useKnowledgeStore((s) => s.updateItem);
@@ -28,329 +23,339 @@ export default function KnowledgeDetailPage() {
   const createRecord = useExpressionStore((s) => s.createRecord);
   const item = items.find((i) => i.id === itemId);
 
-  const [editingSection, setEditingSection] = useState<EditableSection>(null);
-  const [editText, setEditText] = useState('');
-  const [editCategory, setEditCategory] = useState('');
-  const [editConfidence, setEditConfidence] = useState('');
-  const [editVerifyLogic, setEditVerifyLogic] = useState('');
-  const [editRefLinks, setEditRefLinks] = useState('');
-  const [editMatchScore, setEditMatchScore] = useState('');
-  const [editSourceQuote, setEditSourceQuote] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editSummary, setEditSummary] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editNewTag, setEditNewTag] = useState('');
+  const [showFullInput, setShowFullInput] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   if (!item) {
     return (
-      <SafeAreaView style={ST.root} edges={['top', 'bottom']}>
-        <View style={ST.header}>
+      <SafeAreaView style={S.root} edges={['top']}>
+        <View style={S.header}>
           <TouchableOpacity onPress={() => router.back()}>
-            <Text style={ST.backText}>← 返回</Text>
+            <View style={S.headerSideRow}>
+              <ChevronLeftIcon size={16} color={colors.text.secondary} />
+              <Text style={S.backText}> 返回列表</Text>
+            </View>
           </TouchableOpacity>
-          <Text style={ST.headerTitle}>知识条目</Text>
-          <View style={{ width: 50 }} />
+          <Text style={S.headerTitle}>知识详情</Text>
+          <View style={{width:60}} />
         </View>
-        <View style={ST.empty}><Text style={ST.emptyText}>条目未找到</Text></View>
+        <View style={S.empty}><Text style={S.emptyText}>条目未找到</Text></View>
       </SafeAreaView>
     );
   }
 
-  const isDraft = item.status === 'draft';
   const category = categories.find((c) => c.id === item.categoryId);
   const verification = item.aiVerificationResult;
+  const tags = item.tags || [];
 
-  const startEdit = (section: EditableSection) => {
-    if (section === 'title') setEditText(item.title);
-    else if (section === 'summary') setEditText(item.aiSummary || '');
-    else if (section === 'input') setEditText(item.content || '');
-    else if (section === 'parseResult') {
-      setEditCategory(category?.name || item.categoryId || '');
-      setEditConfidence(item.aiClassificationScore != null ? String(item.aiClassificationScore) : '');
-      setEditVerifyLogic(verification?.verificationLogic || '');
-      setEditRefLinks((verification?.referenceLinks || []).join('\n'));
-      setEditMatchScore(verification?.matchScore != null ? String(verification.matchScore) : '');
-      setEditSourceQuote(verification?.sourceQuote || '');
-    }
-    setEditingSection(section);
+  const startEdit = () => {
+    setEditTitle(item.title);
+    setEditSummary(item.aiSummary || '');
+    setEditTags([...tags]);
+    setEditNewTag('');
+    setHasChanges(false);
+    setEditing(true);
   };
 
-  const cancelEdit = () => { setEditingSection(null); setEditText(''); };
+  const handleBack = () => {
+    if (editing && hasChanges) {
+      Alert.alert('放弃修改？', '是否放弃本次编辑的修改？', [
+        { text: '继续编辑', style: 'cancel' },
+        { text: '放弃', style: 'destructive', onPress: () => { setEditing(false); router.back(); } },
+      ]);
+    } else {
+      setEditing(false);
+      router.back();
+    }
+  };
 
-  const saveEdit = async () => {
-    if (!editingSection) return;
+  const handleSave = async () => {
     try {
-      if (editingSection === 'title') await updateItem(item.id, { title: editText });
-      else if (editingSection === 'summary') await updateItem(item.id, { aiSummary: editText });
-      else if (editingSection === 'input') await updateItem(item.id, { content: editText });
-      else if (editingSection === 'parseResult') {
-        const v = verification || { matchScore: 0, discrepancies: [], sourceQuote: '', verificationLogic: '', referenceLinks: [] };
-        await updateItem(item.id, {
-          categoryId: editCategory,
-          aiClassificationScore: editConfidence ? Number(editConfidence) : undefined,
-          aiVerificationResult: {
-            ...v, verificationLogic: editVerifyLogic,
-            referenceLinks: editRefLinks.split('\n').filter((l) => l.trim()),
-            matchScore: editMatchScore ? Number(editMatchScore) : 0,
-            sourceQuote: editSourceQuote,
-          },
-        });
-      }
-      setEditingSection(null); setEditText('');
+      await updateItem(item.id, {
+        title: editTitle,
+        aiSummary: editSummary,
+        tags: editTags,
+      });
+      setEditing(false);
+      setHasChanges(false);
+      Alert.alert('✅ 保存成功', '知识条目已更新');
     } catch { Alert.alert('保存失败', '请重试'); }
   };
 
-  const handleConfirm = async () => {
-    try {
-      await updateItem(item.id, { status: 'confirmed' });
-      await new Promise((r) => setTimeout(r, 100));
-      await createRecord(item.id);
-      Alert.alert('已确认', '知识条目已确认入库', [{ text: '好的', onPress: () => router.back() }]);
-    } catch { Alert.alert('错误', '操作失败'); }
-  };
-
   const handleDelete = () => {
-    Alert.alert('确认删除', '不可撤销', [
+    Alert.alert('确认删除', '确定要彻底删除该知识及所有相关训练记录吗？', [
       { text: '取消', style: 'cancel' },
       { text: '删除', style: 'destructive', onPress: () => { deleteItem(item.id); router.back(); } },
     ]);
   };
 
+  const handleStartTrain = async () => {
+    try {
+      await createRecord(item.id);
+    } catch {}
+    router.push(`/expression/${item.id}`);
+  };
+
+  const addTag = () => {
+    if (editNewTag.trim() && !editTags.includes(editNewTag.trim())) {
+      setEditTags([...editTags, editNewTag.trim()]);
+      setEditNewTag('');
+      setHasChanges(true);
+    }
+  };
+  const removeTag = (t: string) => {
+    setEditTags(editTags.filter((tag) => tag !== t));
+    setHasChanges(true);
+  };
+
+  const confidence = item.aiClassificationScore ?? verification?.matchScore ?? 0;
+  const confidenceLabel = confidence >= 80 ? '真实度高' : confidence >= 50 ? '中等可信' : '待验证';
+
   return (
-    <SafeAreaView style={ST.root} edges={['top', 'bottom']}>
-      <View style={ST.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={ST.backText}>← 返回</Text>
+    <SafeAreaView style={S.root} edges={['top']}>
+      {/* Header */}
+      <View style={S.header}>
+        <TouchableOpacity onPress={handleBack}>
+          <View style={S.headerSideRow}>
+            <ChevronLeftIcon size={16} color={colors.text.secondary} />
+            <Text style={S.backText}> 返回列表</Text>
+          </View>
         </TouchableOpacity>
-        <Text style={ST.headerTitle} numberOfLines={1}>知识条目详情</Text>
-        <View style={ST.headerRight}>
-          <Badge label={isDraft ? '未确认' : '已入库'} size="sm" color={isDraft ? colors.warning : colors.success} />
-        </View>
+        <Text style={S.headerTitle}>知识详情</Text>
+        <TouchableOpacity onPress={handleDelete} activeOpacity={0.7}>
+          <View style={S.headerSideRow}>
+            <TrashIcon size={13} color={colors.danger} />
+            <Text style={S.deleteBtn}> 删除</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={ST.scroll} contentContainerStyle={ST.inner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* ── Title ────────────────────────────────────────────────── */}
-        <View style={ST.section}>
-          <View style={ST.secHead}>
-            <Text style={ST.secLabel}>知识标题</Text>
-            {editingSection !== 'title' && (
-              <TouchableOpacity onPress={() => startEdit('title')}><Text style={ST.editLink}>编辑</Text></TouchableOpacity>
-            )}
-            {editingSection === 'title' && (
-              <TouchableOpacity onPress={cancelEdit}><Text style={ST.cancelLink}>取消</Text></TouchableOpacity>
-            )}
+      <ScrollView style={S.scroll} contentContainerStyle={S.inner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* 1. Title */}
+        <View style={S.section}>
+          <View style={S.secLabelRow}>
+            <PencilIcon size={12} color={colors.text.primary} />
+            <Text style={S.secLabel}> 1. 知识条目标题</Text>
           </View>
-          {editingSection === 'title' ? (
-            <>
-              <TextInput style={ST.editInput} value={editText} onChangeText={setEditText} autoFocus />
-              <View style={ST.saveRow}>
-                <TouchableOpacity style={ST.saveBtn} onPress={saveEdit}><Text style={ST.saveBtnText}>确认</Text></TouchableOpacity>
-              </View>
-            </>
+          {editing ? (
+            <TextInput style={S.editInput} value={editTitle} onChangeText={(t) => { setEditTitle(t); setHasChanges(true); }} autoFocus />
           ) : (
-            <Text style={ST.itemTitle}>{item.title}</Text>
+            <Text style={S.itemTitle}>{item.title}</Text>
           )}
         </View>
+        <View style={S.divider} />
 
-        {/* ── AI Summary ───────────────────────────────────────────── */}
-        <View style={ST.section}>
-          <View style={ST.secHead}>
-            <Text style={ST.secLabel}>AI 总结</Text>
-            {editingSection !== 'summary' && (
-              <TouchableOpacity onPress={() => startEdit('summary')}><Text style={ST.editLink}>编辑</Text></TouchableOpacity>
-            )}
-            {editingSection === 'summary' && (
-              <TouchableOpacity onPress={cancelEdit}><Text style={ST.cancelLink}>取消</Text></TouchableOpacity>
-            )}
-          </View>
-          {editingSection === 'summary' ? (
-            <>
-              <TextInput style={ST.editInput} value={editText} onChangeText={setEditText} multiline textAlignVertical="top" autoFocus />
-              <View style={ST.saveRow}>
-                <TouchableOpacity style={ST.saveBtn} onPress={saveEdit}><Text style={ST.saveBtnText}>确认</Text></TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <Text style={ST.body}>{item.aiSummary || '暂无总结'}</Text>
-          )}
-        </View>
-
-        {/* ── Original Input ───────────────────────────────────────── */}
-        <View style={ST.section}>
-          <View style={ST.secHead}>
-            <Text style={ST.secLabel}>原始输入</Text>
-            {editingSection !== 'input' && (
-              <TouchableOpacity onPress={() => startEdit('input')}><Text style={ST.editLink}>编辑</Text></TouchableOpacity>
-            )}
-            {editingSection === 'input' && (
-              <TouchableOpacity onPress={cancelEdit}><Text style={ST.cancelLink}>取消</Text></TouchableOpacity>
-            )}
-          </View>
-          {editingSection === 'input' ? (
-            <>
-              <TextInput style={ST.editInput} value={editText} onChangeText={setEditText} multiline textAlignVertical="top" autoFocus />
-              <View style={ST.saveRow}>
-                <TouchableOpacity style={ST.saveBtn} onPress={saveEdit}><Text style={ST.saveBtnText}>确认</Text></TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              {item.sourceURL && (
-                <Text style={ST.srcURL} selectable>{item.sourceURL}</Text>
-              )}
-              <Text style={ST.body}>{item.content || '暂无内容'}</Text>
-            </>
-          )}
-        </View>
-
-        {/* ── AI Parse Result ──────────────────────────────────────── */}
-        <View style={ST.section}>
-          <View style={ST.secHead}>
-            <Text style={ST.secLabel}>AI 解析结果</Text>
-            {editingSection !== 'parseResult' && (
-              <TouchableOpacity onPress={() => startEdit('parseResult')}><Text style={ST.editLink}>编辑</Text></TouchableOpacity>
-            )}
-            {editingSection === 'parseResult' && (
-              <TouchableOpacity onPress={cancelEdit}><Text style={ST.cancelLink}>取消</Text></TouchableOpacity>
-            )}
-          </View>
-          {editingSection === 'parseResult' ? (
-            <>
-              <Text style={ST.fieldLabel}>分类</Text>
-              <TextInput style={ST.editSm} value={editCategory} onChangeText={setEditCategory} />
-              <Text style={ST.fieldLabel}>置信度 (%)</Text>
-              <TextInput style={ST.editSm} value={editConfidence} onChangeText={setEditConfidence} keyboardType="numeric" />
-              <Text style={ST.fieldLabel}>验真思路</Text>
-              <TextInput style={ST.editInput} value={editVerifyLogic} onChangeText={setEditVerifyLogic} multiline textAlignVertical="top" />
-              <Text style={ST.fieldLabel}>参考 URL（每行一个）</Text>
-              <TextInput style={ST.editInput} value={editRefLinks} onChangeText={setEditRefLinks} multiline textAlignVertical="top" />
-              <Text style={ST.fieldLabel}>匹配度 (%)</Text>
-              <TextInput style={ST.editSm} value={editMatchScore} onChangeText={setEditMatchScore} keyboardType="numeric" />
-              <Text style={ST.fieldLabel}>原文引用</Text>
-              <TextInput style={ST.editInput} value={editSourceQuote} onChangeText={setEditSourceQuote} multiline textAlignVertical="top" />
-              <View style={ST.saveRow}>
-                <TouchableOpacity style={ST.saveBtn} onPress={saveEdit}><Text style={ST.saveBtnText}>确认</Text></TouchableOpacity>
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={ST.fieldRow}>
-                <Text style={ST.fieldKey}>分类</Text>
-                <Text style={ST.fieldV}>{category?.name || item.categoryId || '未分类'}</Text>
-              </View>
-              {item.aiClassificationScore != null && (
-                <View style={ST.fieldRow}>
-                  <Text style={ST.fieldKey}>置信度</Text>
-                  <Text style={ST.fieldV}>{item.aiClassificationScore}%</Text>
+        {/* 2. AI Summary */}
+        <View style={S.section}>
+          <View style={S.secHeadRow}>
+            <View style={S.secLabelRow}>
+              <PencilIcon size={12} color={colors.text.primary} />
+              <Text style={S.secLabel}> 2. AI 总结内容</Text>
+            </View>
+            {editing && (
+              <TouchableOpacity activeOpacity={0.7}>
+                <View style={S.regenerateRow}>
+                  <RefreshIcon size={12} color={colors.accent} />
+                  <Text style={S.regenerateBtn}> AI重新生成</Text>
                 </View>
-              )}
-              {verification && (
-                <View style={ST.sub}>
-                  <Text style={ST.subLabel}>验真结果</Text>
-                  {verification.verificationLogic ? (
-                    <View style={ST.subF}><Text style={ST.subFL}>验真思路</Text><Text style={ST.body}>{verification.verificationLogic}</Text></View>
-                  ) : null}
-                  {verification.referenceLinks && verification.referenceLinks.length > 0 && (
-                    <View style={ST.subF}>
-                      <Text style={ST.subFL}>参考 URL</Text>
-                      {verification.referenceLinks.map((link, i) => (
-                        <Text key={i} style={ST.refLink} selectable>{i + 1}. {link}</Text>
-                      ))}
-                    </View>
-                  )}
-                  {verification.matchScore != null && (
-                    <View style={ST.fieldRow}><Text style={ST.fieldKey}>匹配度</Text><Text style={ST.fieldV}>{verification.matchScore}%</Text></View>
-                  )}
-                  {verification.sourceQuote ? (
-                    <View style={ST.subF}><Text style={ST.subFL}>原文引用</Text><Text style={ST.body}>{verification.sourceQuote}</Text></View>
-                  ) : null}
-                </View>
-              )}
-              {!verification && !item.aiClassificationScore && !category && (
-                <Text style={ST.hint}>暂无 AI 解析数据</Text>
-              )}
-            </>
+              </TouchableOpacity>
+            )}
+          </View>
+          {editing ? (
+            <TextInput style={S.editInputMulti} value={editSummary}
+              onChangeText={(t) => { setEditSummary(t); setHasChanges(true); }}
+              multiline textAlignVertical="top" />
+          ) : (
+            <Text style={S.body}>{item.aiSummary || '暂无总结'}</Text>
           )}
         </View>
+        <View style={S.divider} />
 
-        <View style={{ height: 48 }} />
+        {/* 3. Original Input */}
+        <View style={S.section}>
+          <View style={S.secLabelRow}>
+            <PencilIcon size={12} color={colors.text.primary} />
+            <Text style={S.secLabel}> 3. 用户原始输入</Text>
+          </View>
+          <ScrollView style={{maxHeight: showFullInput ? undefined : 100}} nestedScrollEnabled>
+            {item.sourceURL && (
+              <Text style={S.srcURL} selectable>{item.sourceURL}</Text>
+            )}
+            <Text style={S.body}>{item.content || '暂无内容'}</Text>
+          </ScrollView>
+          {(item.content?.length || 0) > 150 && !showFullInput && (
+            <TouchableOpacity onPress={() => setShowFullInput(true)} activeOpacity={0.7}>
+              <View style={S.expandRow}>
+                <ChevronDownIcon size={12} color={colors.accent} />
+                <Text style={S.expandMore}> 展开更多</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        </View>
+        <View style={S.divider} />
+
+        {/* 4. Category / Tags */}
+        <View style={S.section}>
+          <View style={S.secLabelRow}>
+            <PencilIcon size={12} color={colors.text.primary} />
+            <Text style={S.secLabel}> 4. 知识分类</Text>
+          </View>
+          <View style={S.tagRow}>
+            {editing ? (
+              <>
+                {editTags.map((tag, i) => (
+                  <TouchableOpacity key={i} style={S.tag} onPress={() => removeTag(tag)} activeOpacity={0.7}>
+                    <Text style={S.tagText}>{tag} ✕</Text>
+                  </TouchableOpacity>
+                ))}
+                <View style={S.addTagRow}>
+                  <TextInput style={S.addTagInput} placeholder="+ 新增标签" placeholderTextColor={colors.text.tertiary}
+                    value={editNewTag} onChangeText={setEditNewTag} onSubmitEditing={addTag} />
+                  <TouchableOpacity onPress={addTag} activeOpacity={0.7}>
+                    <Text style={S.addTagBtn}>添加</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              tags.map((tag, i) => (
+                <View key={i} style={S.tag}><Text style={S.tagText}>{tag}</Text></View>
+              ))
+            )}
+            {!editing && tags.length === 0 && (
+              <Text style={S.hint}>暂无分类标签</Text>
+            )}
+          </View>
+        </View>
+        <View style={S.divider} />
+
+        {/* 5. Verification */}
+        <View style={S.section}>
+          <View style={S.secLabelRow}>
+            <PencilIcon size={12} color={colors.text.primary} />
+            <Text style={S.secLabel}> 5. 验真结果与评估</Text>
+          </View>
+          {verification?.referenceLinks && verification.referenceLinks.length > 0 && (
+            <Text style={S.verifyText}>
+              * 验证链接：{verification.referenceLinks.map((l, i) => `[${i+1}] ${l}`).join('  ')}
+            </Text>
+          )}
+          <View style={[S.verifyBadge, confidence >= 80 ? {borderColor:colors.success,backgroundColor:colors.success+'15'} : confidence >= 50 ? {borderColor:colors.warning,backgroundColor:colors.warning+'15'} : {borderColor:colors.danger,backgroundColor:colors.danger+'15'}]}>
+            <Text style={[S.verifyBadgeText, confidence >= 80 ? {color:colors.success} : confidence >= 50 ? {color:colors.warning} : {color:colors.danger}]}>
+              {confidenceLabel} ({confidence}%)
+            </Text>
+          </View>
+          <Text style={[S.verifyResult, confidence >= 80 ? {color:colors.success} : confidence >= 50 ? {color:colors.warning} : {color:colors.danger}]}>
+            {verification?.verificationLogic || (confidence >= 80 ? '核心概念在学术界有明确理论支持。' : '')}
+          </Text>
+        </View>
+
+        {/* Created date */}
+        <View style={S.metaRow}>
+          <CalendarIcon size={12} color={colors.text.tertiary} />
+          <Text style={S.metaText}> 入库时间：{item.createdAt ? format(new Date(item.createdAt), 'yyyy-MM-dd') : '--'}</Text>
+        </View>
+
+        <View style={{height:24}} />
       </ScrollView>
 
       {/* Bottom bar */}
-      <View style={[ST.bottomBar, { paddingBottom: insets.bottom + 10 }]}>
-        {isDraft && (
-          <TouchableOpacity style={ST.bottomConfirm} onPress={handleConfirm}>
-            <Text style={ST.bottomConfirmText}>确认入库</Text>
+      <View style={S.bottomBar}>
+        {editing ? (
+          <TouchableOpacity style={S.doneBtn} onPress={handleSave} activeOpacity={0.7}>
+            <View style={S.btnInner}>
+              <CheckIcon size={15} color={colors.text.inverse} />
+              <Text style={S.doneBtnText}> 完成</Text>
+            </View>
           </TouchableOpacity>
+        ) : (
+          <>
+            <TouchableOpacity style={S.trainBtn} onPress={handleStartTrain} activeOpacity={0.7}>
+              <View style={S.btnInner}>
+                <MicIcon size={14} color={colors.text.inverse} />
+                <Text style={S.trainBtnText}> 开始复述</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={S.editBtn} onPress={startEdit} activeOpacity={0.7}>
+              <View style={S.btnInner}>
+                <PencilIcon size={14} color={colors.text.primary} />
+                <Text style={S.editBtnText}> 编辑知识</Text>
+              </View>
+            </TouchableOpacity>
+          </>
         )}
-        <TouchableOpacity style={ST.bottomDelete} onPress={handleDelete}>
-          <Text style={ST.bottomDeleteText}>删除</Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 }
 
-const ST = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
+const S = StyleSheet.create({
+  root: { flex:1, backgroundColor:colors.background },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: colors.surface, borderBottomWidth: 0.5, borderBottomColor: colors.divider,
+    flexDirection:'row', alignItems:'center', justifyContent:'space-between',
+    paddingHorizontal:12, paddingVertical:10,
+    backgroundColor:colors.surface,
+    borderBottomWidth:tokens.borderWidth.hairline, borderBottomColor:'#D4CDC0',
   },
-  backText: { fontSize: 15, color: colors.text.secondary, letterSpacing: 1 },
-  headerTitle: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text.primary, letterSpacing: 1, textAlign: 'center' },
-  headerRight: { minWidth: 60, alignItems: 'flex-end' },
+  headerSideRow: { flexDirection:'row', alignItems:'center' },
+  backText: { fontSize:14, color:colors.text.secondary },
+  headerTitle: { fontSize:17, fontWeight:'700', color:colors.text.primary },
+  deleteBtn: { fontSize:13, color:colors.danger, fontWeight:'600' },
 
-  scroll: { flex: 1 },
-  inner: { padding: 18, gap: 14 },
+  scroll: { flex:1 },
+  inner: { padding:18 },
 
-  section: {
-    backgroundColor: colors.surface, padding: 16,
-    borderLeftWidth: 2, borderLeftColor: colors.text.primary,
-  },
-  secHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  secLabel: { fontSize: 12, fontWeight: '600', color: colors.text.primary, letterSpacing: 2, flex: 1, fontFamily },
-  editLink: { fontSize: 11, color: colors.text.secondary, letterSpacing: 2 },
-  cancelLink: { fontSize: 11, color: colors.text.tertiary, letterSpacing: 2 },
+  section: { gap:8 },
+  secLabelRow: { flexDirection:'row', alignItems:'center' },
+  secLabel: { fontSize:13, fontWeight:'600', color:colors.text.primary },
+  secHeadRow: { flexDirection:'row', justifyContent:'space-between', alignItems:'center' },
+  regenerateRow: { flexDirection:'row', alignItems:'center' },
+  regenerateBtn: { fontSize:12, color:colors.accent, fontWeight:'600' },
+  divider: { height:tokens.borderWidth.hairline, backgroundColor:'#D4CDC0', marginVertical:16 },
 
-  itemTitle: { fontSize: 18, fontWeight: '600', color: colors.text.primary, fontFamily, lineHeight: 26 },
-  body: { fontSize: 14, color: colors.text.secondary, lineHeight: 24 },
-  srcURL: { fontSize: 13, color: colors.primary, lineHeight: 22, marginBottom: 8 },
+  itemTitle: { fontSize:18, fontWeight:'700', color:colors.text.primary, fontFamily, lineHeight:26 },
+  body: { fontSize:14, color:colors.text.secondary, lineHeight:23 },
+  srcURL: { fontSize:13, color:colors.primary, lineHeight:22, marginBottom:8 },
 
-  editInput: {
-    backgroundColor: colors.background, padding: 12, fontSize: 14, color: colors.text.primary,
-    minHeight: 60, textAlignVertical: 'top', lineHeight: 22, marginBottom: 8,
-    borderBottomWidth: 0.5, borderBottomColor: colors.divider,
-  },
-  editSm: {
-    backgroundColor: colors.background, padding: 10, fontSize: 14, color: colors.text.primary,
-    marginBottom: 10, borderBottomWidth: 0.5, borderBottomColor: colors.divider,
-  },
-  fieldLabel: { fontSize: 12, color: colors.text.tertiary, letterSpacing: 1, marginBottom: 4, marginTop: 4 },
-  saveRow: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 },
-  saveBtn: { backgroundColor: colors.text.primary, paddingVertical: 8, paddingHorizontal: 18 },
-  saveBtnText: { fontSize: 12, color: colors.text.inverse, letterSpacing: 2, fontWeight: '500' },
+  editInput: { fontSize:15, color:colors.text.primary, backgroundColor:colors.surface, padding:12, borderRadius:tokens.radius.sm, borderWidth:tokens.borderWidth.hairline, borderColor:'#D4CDC0' },
+  editInputMulti: { fontSize:14, color:colors.text.primary, backgroundColor:colors.surface, padding:12, borderRadius:tokens.radius.sm, borderWidth:tokens.borderWidth.hairline, borderColor:'#D4CDC0', minHeight:100, textAlignVertical:'top', lineHeight:21 },
 
-  fieldRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8, gap: 10 },
-  fieldKey: { width: 60, fontSize: 12, color: colors.text.tertiary, letterSpacing: 1 },
-  fieldV: { flex: 1, fontSize: 13, color: colors.text.primary },
+  expandRow: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:8 },
+  expandMore: { fontSize:12, color:colors.accent, fontWeight:'600' },
+  hint: { fontSize:12, color:colors.text.tertiary },
 
-  sub: { marginTop: 10, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: colors.divider },
-  subLabel: { fontSize: 12, color: colors.text.secondary, letterSpacing: 2, marginBottom: 8 },
-  subF: { marginBottom: 10 },
-  subFL: { fontSize: 11, color: colors.text.tertiary, letterSpacing: 1, marginBottom: 4 },
-  refLink: { fontSize: 13, color: colors.primary, lineHeight: 22, marginBottom: 2 },
-  hint: { fontSize: 12, color: colors.text.tertiary, letterSpacing: 1, fontStyle: 'italic' },
+  tagRow: { flexDirection:'row', flexWrap:'wrap', gap:6 },
+  tag: { backgroundColor:colors.primaryLight, borderRadius:3, paddingVertical:4, paddingHorizontal:10, borderWidth:tokens.borderWidth.hairline, borderColor:'#D4CDC0' },
+  tagText: { fontSize:12, color:colors.text.primary, fontWeight:'500' },
+  addTagRow: { flexDirection:'row', alignItems:'center', gap:4 },
+  addTagInput: { fontSize:12, color:colors.text.primary, borderWidth:tokens.borderWidth.hairline, borderColor:'#D4CDC0', borderRadius:tokens.radius.full, paddingVertical:4, paddingHorizontal:10, minWidth:80 },
+  addTagBtn: { fontSize:12, color:colors.accent, fontWeight:'600' },
+
+  verifyText: { fontSize:12, color:colors.text.secondary, lineHeight:18 },
+  verifyBadge: { alignSelf:'flex-start', borderRadius:tokens.radius.sm, paddingVertical:3, paddingHorizontal:8, borderWidth:tokens.borderWidth.hairline },
+  verifyBadgeText: { fontSize:12, fontWeight:'600' },
+  verifyResult: { fontSize:13, marginTop:6, lineHeight:19 },
+
+  metaRow: { marginTop:20, flexDirection:'row', alignItems:'center', justifyContent:'center' },
+  metaText: { fontSize:12, color:colors.text.tertiary },
 
   bottomBar: {
-    flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 10, gap: 12,
-    backgroundColor: colors.surface, borderTopWidth: 0.5, borderTopColor: colors.divider,
+    flexDirection:'row', paddingHorizontal:16, paddingVertical:12, gap:10,
+    backgroundColor:colors.surface, borderTopWidth:tokens.borderWidth.hairline, borderTopColor:'#D4CDC0',
   },
-  bottomConfirm: { flex: 1, backgroundColor: colors.text.primary, paddingVertical: 13, alignItems: 'center' },
-  bottomConfirmText: { fontSize: 14, color: colors.text.inverse, letterSpacing: 3, fontWeight: '500' },
-  bottomDelete: {
-    flex: 1, backgroundColor: 'transparent', paddingVertical: 13, alignItems: 'center',
-    borderWidth: 0.5, borderColor: colors.divider,
-  },
-  bottomDeleteText: { fontSize: 13, color: colors.danger, letterSpacing: 2 },
+  btnInner: { flexDirection:'row', alignItems:'center' },
+  trainBtn: { flex:1, backgroundColor:colors.primary, borderRadius:tokens.radius.md, paddingVertical:14, alignItems:'center' },
+  trainBtnText: { fontSize:15, fontWeight:'700', color:colors.text.inverse },
+  editBtn: { flex:1, borderRadius:tokens.radius.md, paddingVertical:14, alignItems:'center', borderWidth:tokens.borderWidth.hairline, borderColor:'#D4CDC0' },
+  editBtnText: { fontSize:15, fontWeight:'600', color:colors.text.primary },
 
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  emptyText: { fontSize: 14, color: colors.text.tertiary, letterSpacing: 1, fontFamily },
+  doneBtn: { flex:1, backgroundColor:colors.primary, borderRadius:tokens.radius.md, paddingVertical:14, alignItems:'center' },
+  doneBtnText: { fontSize:15, fontWeight:'700', color:colors.text.inverse },
+
+  empty: { flex:1, alignItems:'center', justifyContent:'center' },
+  emptyText: { fontSize:14, color:colors.text.tertiary },
 });

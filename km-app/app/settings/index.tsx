@@ -316,8 +316,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomWidth: tokens.borderWidth.hairline,
+    borderBottomColor: '#D4CDC0',
     alignItems: 'center',
   },
   headerTitle: {
@@ -369,8 +369,8 @@ const styles = StyleSheet.create({
   timeSelector: {
     marginTop: 14,
     paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.divider,
+    borderTopWidth: tokens.borderWidth.hairline,
+    borderTopColor: '#D4CDC0',
   },
   timeLabel: {
     fontSize: 13,
@@ -385,7 +385,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: colors.divider,
+    backgroundColor: colors.primaryLight,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
   },
   timeChipActive: {
     backgroundColor: colors.primary,
@@ -425,8 +427,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    borderBottomWidth: tokens.borderWidth.hairline,
+    borderBottomColor: '#D4CDC0',
   },
   categoryInfo: {
     flexDirection: 'row',
@@ -446,8 +448,10 @@ const styles = StyleSheet.create({
   editBtn: {
     paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 12,
-    backgroundColor: colors.divider,
+    borderRadius: 3,
+    backgroundColor: colors.primaryLight,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
   },
   editBtnText: {
     fontSize: 12,
@@ -456,9 +460,8 @@ const styles = StyleSheet.create({
   addCategoryBtn: {
     paddingVertical: 12,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
     borderRadius: 8,
     marginTop: 8,
   },
@@ -484,8 +487,8 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   infoDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.divider,
+    height: tokens.borderWidth.hairline,
+    backgroundColor: '#D4CDC0',
   },
   bottomSpacer: {
     height: 40,
@@ -528,8 +531,8 @@ const styles = StyleSheet.create({
   modalInput: {
     backgroundColor: colors.background,
     borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
     padding: 12,
     fontSize: 15,
     color: colors.text.primary,

@@ -10,7 +10,9 @@ import {
   PanResponderGestureState,
 } from 'react-native';
 import { colors, tokens, fontFamily } from '../../theme';
+import Svg, { Rect } from 'react-native-svg';
 import { Badge } from '../ui/Badge';
+import { CalendarIcon, BoxIcon, TrophyIcon, MicIcon } from '../ui/ExpressionIcons';
 import type { TrainingRecord, KnowledgeItem, KnowledgeCategory } from '../../types';
 
 // ── Constants ──────────────────────────────────────────────
@@ -26,6 +28,7 @@ interface SwipeableTaskCardProps {
   item?: KnowledgeItem;
   category?: KnowledgeCategory;
   onPress: () => void;
+  onTrain: () => void;
   onDefer: () => void;
   /** If true, disable swipe (e.g. for completed items) */
   swipeDisabled?: boolean;
@@ -36,6 +39,7 @@ export function SwipeableTaskCard({
   item,
   category,
   onPress,
+  onTrain,
   onDefer,
   swipeDisabled = false,
 }: SwipeableTaskCardProps) {
@@ -135,7 +139,7 @@ export function SwipeableTaskCard({
           onPress={handleDefer}
           activeOpacity={0.75}
         >
-          <Text style={styles.deferIcon}>📅</Text>
+          <CalendarIcon size={20} color="#FFF" />
           <Text style={styles.deferLabel}>延期</Text>
         </TouchableOpacity>
       </View>
@@ -152,12 +156,12 @@ export function SwipeableTaskCard({
         >
           {/* Top row: title + score */}
           <View style={styles.topRow}>
-            <Text style={styles.itemIcon}>📦</Text>
-            <Text style={styles.title} numberOfLines={2}>
+            <BoxIcon size={18} />
+            <Text style={styles.title} numberOfLines={1}>
               {item?.title || '未知条目'}
             </Text>
             <View style={styles.scoreArea}>
-              <Text style={styles.scoreIcon}>🏆</Text>
+              <TrophyIcon size={14} />
               <Text style={[styles.scoreText, !hasScore && styles.scoreTextMuted]}>
                 {hasScore ? `${score}分` : '--分'}
               </Text>
@@ -168,16 +172,27 @@ export function SwipeableTaskCard({
           <View style={styles.bottomRow}>
             {category && (
               <View style={styles.categoryTag}>
-                <View style={[styles.catDot, { backgroundColor: category.color }]} />
-                <Text style={styles.catText}>{category.name}</Text>
+                <View style={styles.tagPencilCanvas} pointerEvents="none">
+                  <Svg width="100%" height="100%" viewBox="0 0 80 24" preserveAspectRatio="none">
+                    <Rect x={2} y={2} width={76} height={20}
+                      stroke="#3A3530" strokeWidth={1.2} strokeDasharray="12 4 8 3 16 4"
+                      strokeLinecap="round" fill="none" opacity={0.38} rx={3} ry={3} />
+                    <Rect x={3} y={1} width={74} height={22}
+                      stroke="#4A4440" strokeWidth={0.9} strokeDasharray="6 5 10 3 8 4"
+                      strokeLinecap="round" fill="none" opacity={0.30} rx={4} ry={2} />
+                  </Svg>
+                </View>
+                <View style={styles.tagInner}>
+                  <Text style={styles.tagText}>{category.name}</Text>
+                </View>
               </View>
             )}
             <Badge label={record.state} size="sm" />
             <View style={styles.spacer} />
-            <View style={styles.actionHint}>
-              <Text style={styles.actionHintIcon}>🎙️</Text>
+            <TouchableOpacity style={styles.actionHint} onPress={onTrain} activeOpacity={0.7}>
+              <MicIcon size={12} />
               <Text style={styles.actionHintText}>开始复述</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </TouchableOpacity>
       </Animated.View>
@@ -212,9 +227,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  deferIcon: {
-    fontSize: 20,
-  },
   deferLabel: {
     fontSize: 12,
     fontWeight: '600',
@@ -225,14 +237,14 @@ const styles = StyleSheet.create({
   cardOuter: {
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.lg,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.border,
-    // Hard shadow
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
+    // Soft shadow
     shadowColor: colors.primary,
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 0,
-    elevation: 2,
+    shadowOffset: { width: 1, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
   },
   cardInner: {
     paddingVertical: 14,
@@ -246,10 +258,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     gap: 8,
   },
-  itemIcon: {
-    fontSize: 18,
-    marginTop: 1,
-  },
   title: {
     flex: 1,
     fontSize: 15,
@@ -262,9 +270,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     marginLeft: 8,
-  },
-  scoreIcon: {
-    fontSize: 14,
   },
   scoreText: {
     fontSize: 18,
@@ -282,20 +287,29 @@ const styles = StyleSheet.create({
   bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   categoryTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+    position: 'relative',
+    marginRight: 4,
   },
-  catDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
+  tagPencilCanvas: {
+    position: 'absolute',
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    zIndex: 0,
   },
-  catText: {
-    fontSize: 12,
+  tagInner: {
+    borderRadius: 3,
+    backgroundColor: 'rgba(245,240,230,0.5)',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  tagText: {
+    fontSize: 11,
+    fontWeight: '500',
     color: colors.text.secondary,
   },
   spacer: {
@@ -309,9 +323,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 12,
     borderRadius: tokens.radius.md,
-  },
-  actionHintIcon: {
-    fontSize: 12,
   },
   actionHintText: {
     fontSize: 12,

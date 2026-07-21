@@ -70,12 +70,16 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.primary,
-    ...tokens.shadow.hardSm,
+    shadowColor: '#171513',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   secondary: {
     backgroundColor: colors.primaryLight,
-    borderWidth: tokens.borderWidth.standard,
-    borderColor: colors.border,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
   },
   ghost: {
     backgroundColor: 'transparent',
@@ -85,7 +89,11 @@ const styles = StyleSheet.create({
   },
   accent: {
     backgroundColor: colors.accent,
-    ...tokens.shadow.hardSm,
+    shadowColor: '#171513',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   size_sm: {
     paddingVertical: 6,

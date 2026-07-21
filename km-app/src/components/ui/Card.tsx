@@ -21,10 +21,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.lg,
     padding: 16,
-    borderWidth: tokens.borderWidth.thin,
-    borderColor: colors.border,
+    borderWidth: tokens.borderWidth.hairline,
+    borderColor: '#D4CDC0',
   },
   elevated: {
-    ...tokens.shadow.elevated,
+    shadowColor: '#171513',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 1,
   },
 });
