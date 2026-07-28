@@ -14,10 +14,26 @@ dist/
 # Metro
 .metro-health-check*
 
-# Environment
+# Environment & Secrets
+# .env.example / .env.template are OK to commit — they show structure without real keys
 .env
 .env.local
-.env.*.local
+.env.development.local
+.env.production.local
+.env.test.local
+*.pem
+*.crt
+credentials.json
+service-account.json
+.mcp*.json
+
+# Database files — never commit (contain user data + API keys in settings table)
+*.db
+*.sqlite
+*.sqlite3
+
+# MCP / AI API keys — never commit
+# (Anthropic sk-ant-*, OpenAI sk-*, DashScope/qwen, etc.)
 
 # IDE
 .idea/

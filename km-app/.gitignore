@@ -31,7 +31,17 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+# .env.example / .env.template are OK to commit — show structure without real keys
+.env
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# Database files — never commit (settings table stores API key)
+*.db
+*.sqlite
+*.sqlite3
 
 # typescript
 *.tsbuildinfo
@@ -39,3 +49,18 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Tunnel tools
+bore.exe
+bore.zip
+ngrok.exe
+ngrok.zip
+ngrok-out.log
+ngrok-err.log
+
+# Local dev
+/scripts/
+/stubs/
+/demo/
+prd.txt
+/素材库/
