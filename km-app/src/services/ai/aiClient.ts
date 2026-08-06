@@ -1,4 +1,5 @@
 import type { AIClientConfig } from '../../types';
+import { getAIConfig as getStoredAIConfig } from './aiConfigStore';
 
 const DEFAULT_CONFIG: AIClientConfig = {
   provider: 'anthropic',
@@ -16,22 +17,56 @@ export function getAIConfig(): AIClientConfig {
   return { ...config };
 }
 
+export interface AICallOptions {
+  temperature?: number;
+  maxTokens?: number;
+  /** Override global config — pass apiKey/baseURL/model directly */
+  apiKey?: string;
+  baseURL?: string;
+  model?: string;
+}
+
 export async function callAI(
   systemPrompt: string,
   userMessage: string,
-  options?: { temperature?: number; maxTokens?: number }
+  options?: AICallOptions
 ): Promise<string> {
-  const { provider, apiKey, model, baseURL } = config;
+  // 1. Passed-in options → 2. aiConfigStore (set by settings store) → 3. legacy global config
+  const storeCfg = getStoredAIConfig();
+  const apiKey = options?.apiKey || storeCfg.apiKey || config.apiKey;
+  const baseURL = options?.baseURL || storeCfg.baseURL || config.baseURL;
+  const model = options?.model || storeCfg.model || config.model;
+  const provider: 'anthropic' | 'openai' = /anthropic/i.test(baseURL || '') ? 'anthropic' : 'openai';
+
+  console.log('[callAI] resolve:', JSON.stringify({
+    optKey: String(options?.apiKey || '').slice(0, 8) + '...',
+    storeKey: String(storeCfg.apiKey).slice(0, 8) + '...',
+    globalKey: String(config.apiKey).slice(0, 8) + '...',
+    finalKeyLen: apiKey.length,
+    baseURL,
+    model,
+  }));
 
   if (!apiKey) {
+    console.log('[callAI] ❌ No API key — all sources empty');
     throw new Error('API key not configured. Please set your API key in settings.');
   }
 
-  const url = baseURL
-    ? `${baseURL}/v1/messages`
-    : provider === 'anthropic'
-    ? 'https://api.anthropic.com/v1/messages'
-    : 'https://api.openai.com/v1/chat/completions';
+  // Build the correct URL — normalize baseURL to avoid double /v1
+  const normalizedBase = (baseURL || '')
+    .replace(/\/+$/, '')        // strip trailing slashes
+    .replace(/\/v1\/?$/, '');   // strip trailing /v1 so we can add it back cleanly
+
+  let url: string;
+  if (provider === 'anthropic') {
+    url = baseURL
+      ? `${normalizedBase}/v1/messages`
+      : 'https://api.anthropic.com/v1/messages';
+  } else {
+    url = baseURL
+      ? `${normalizedBase}/v1/chat/completions`
+      : 'https://api.openai.com/v1/chat/completions';
+  }
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -62,6 +97,7 @@ export async function callAI(
     };
   }
 
+  console.log('[callAI] 🚀 sending request to:', url, 'model:', model);
   const response = await fetch(url, {
     method: 'POST',
     headers,
@@ -85,7 +121,7 @@ export async function callAI(
 export async function callAIWithJSON<T>(
   systemPrompt: string,
   userMessage: string,
-  options?: { temperature?: number }
+  options?: AICallOptions,
 ): Promise<T> {
   const jsonPrompt = `${systemPrompt}\n\nYou must respond with valid JSON only. No other text.`;
   const response = await callAI(jsonPrompt, userMessage, { ...options, maxTokens: 4096 });

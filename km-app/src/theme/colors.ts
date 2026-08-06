@@ -56,6 +56,9 @@ export const colors = {
   border: '#171513',
   divider: '#D4CDC0',
 
+  // ── Overlay ──
+  overlay: 'rgba(23,21,19,0.50)',
+
   // ── Category palette ──
   categoryColors: [
     '#171513', '#9A7B38', '#5C7A62', '#B8934E',

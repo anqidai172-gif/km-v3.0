@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.lg,
     borderWidth: tokens.borderWidth.hairline,
-    borderColor: '#D4CDC0',
+    borderColor: colors.divider,
     // Soft shadow
     shadowColor: colors.primary,
     shadowOffset: { width: 1, height: 1 },

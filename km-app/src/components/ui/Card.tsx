@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.lg,
     padding: 16,
     borderWidth: tokens.borderWidth.hairline,
-    borderColor: '#D4CDC0',
+    borderColor: colors.divider,
   },
   elevated: {
     shadowColor: '#171513',

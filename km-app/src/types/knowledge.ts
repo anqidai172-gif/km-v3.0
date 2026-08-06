@@ -4,6 +4,7 @@ export interface KnowledgeCategory {
   color: string;
   sortOrder: number;
   isActive: boolean;
+  parentId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -28,6 +29,7 @@ export interface VerificationResult {
 export interface KnowledgeItem {
   id: string;
   categoryId: string;
+  subCategoryId?: string;
   title: string;
   content: string;
   contentPreview: string;

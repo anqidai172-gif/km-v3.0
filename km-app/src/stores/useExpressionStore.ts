@@ -20,6 +20,7 @@ interface ExpressionState {
   submitSatisfaction: (recordId: string, attemptId: string, satisfaction: 'thumbs_up' | 'thumbs_down', comment?: string) => Promise<void>;
   finishSession: (recordId: string) => Promise<void>;
   deferRecord: (recordId: string, days?: number) => Promise<void>;
+  removeRecordsByKnowledgeId: (knowledgeItemId: string) => void;
 
   getRecordByKnowledgeId: (knowledgeItemId: string) => TrainingRecord | undefined;
   getTodayBoard: () => TrainingRecord[];
@@ -34,6 +35,34 @@ export const useExpressionStore = create<ExpressionState>((set, get) => ({
   loadAll: async () => {
     set({ loading: true });
     const records = await expressionRepo.getAllTrainingRecords();
+
+    // Auto-create training records for confirmed items that don't have one yet
+    try {
+      const { useKnowledgeStore } = require('./useKnowledgeStore');
+      const knowledgeState = useKnowledgeStore.getState();
+      const confirmedItems = knowledgeState.items.filter((i: any) => i.status === 'confirmed');
+      const recordItemIds = new Set(records.map((r: TrainingRecord) => r.knowledgeItemId));
+      const missing = confirmedItems.filter((it: any) => !recordItemIds.has(it.id));
+
+      if (missing.length > 0) {
+        const now = getNowStr();
+        for (const item of missing) {
+          const record: TrainingRecord = {
+            id: generateId(),
+            knowledgeItemId: item.id,
+            state: 'pending_retell',
+            attempts: [],
+            priority: 1.0,
+            nextReviewAt: item.createdAt || now,
+            createdAt: item.createdAt || now,
+            updatedAt: now,
+          };
+          await expressionRepo.insertTrainingRecord(record);
+          records.push(record);
+        }
+      }
+    } catch {}
+
     set({ records, loading: false });
   },
 
@@ -45,6 +74,10 @@ export const useExpressionStore = create<ExpressionState>((set, get) => ({
   },
 
   createRecord: async (knowledgeItemId) => {
+    // Guard: never create duplicates — one record per knowledge item
+    const existing = get().records.find((r) => r.knowledgeItemId === knowledgeItemId);
+    if (existing) return existing;
+
     const now = getNowStr();
     const record: TrainingRecord = {
       id: generateId(),
@@ -193,6 +226,13 @@ export const useExpressionStore = create<ExpressionState>((set, get) => ({
     await expressionRepo.updateTrainingRecord(updatedRecord);
     set((s) => ({
       records: s.records.map((r) => (r.id === recordId ? updatedRecord : r)),
+    }));
+  },
+
+  removeRecordsByKnowledgeId: (knowledgeItemId) => {
+    expressionRepo.deleteTrainingRecordByKnowledgeId(knowledgeItemId).catch(() => {});
+    set((s) => ({
+      records: s.records.filter((r) => r.knowledgeItemId !== knowledgeItemId),
     }));
   },
 

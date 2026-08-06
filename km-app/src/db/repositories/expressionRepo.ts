@@ -105,6 +105,14 @@ export async function updateTrainingRecord(record: TrainingRecord): Promise<void
   );
 }
 
+export async function deleteTrainingRecordByKnowledgeId(knowledgeItemId: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'DELETE FROM training_records WHERE knowledge_item_id = ?',
+    [knowledgeItemId]
+  );
+}
+
 export async function getArchiveByDate(): Promise<{ date: string; records: TrainingRecord[] }[]> {
   const db = await getDatabase();
   const rows = await db.getAllAsync<{ created_date: string }>(

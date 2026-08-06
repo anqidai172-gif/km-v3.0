@@ -89,3 +89,10 @@ export async function deleteDraft(id: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM input_drafts WHERE id = ?', [id]);
 }
+
+/** 批量删除指定状态的草稿（如清理调试产生的待入库记录） */
+export async function deleteDraftsByStatus(status: string): Promise<number> {
+  const db = await getDatabase();
+  const result = await db.runAsync('DELETE FROM input_drafts WHERE status = ?', [status]);
+  return result.changes ?? 0;
+}

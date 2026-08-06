@@ -53,3 +53,12 @@ ios/build/
 
 # Claude
 .claude/
+
+# Downloaded video/audio — never commit
+downloads/
+
+# Scratch / temp files
+.scratch/
+
+# Runtime data — never commit (usage tracking, etc.)
+asr_usage.json

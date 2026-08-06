@@ -13,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { format, addDays, isToday } from 'date-fns';
 import Svg, { Path } from 'react-native-svg';
 import { colors, tokens, fontFamily } from '../../src/theme';
+import { pageContentPadding } from '../../src/theme/layout';
 import { ProgressBar } from '../../src/components/expression/ProgressBar';
+import { PageHeader } from '../../src/components/ui/PageHeader';
 import { SwipeableTaskCard } from '../../src/components/expression/SwipeableTaskCard';
 import {
   renderExpressionIcon,
@@ -81,7 +83,6 @@ export default function ExpressionPage() {
 
   // ── Stores ────────────────────────────────────────────
   const records = useExpressionStore((s) => s.records);
-  const loadTodayBoard = useExpressionStore((s) => s.loadTodayBoard);
   const loading = useExpressionStore((s) => s.loading);
   const deferRecord = useExpressionStore((s) => s.deferRecord);
   const items = useKnowledgeStore((s) => s.items);
@@ -105,24 +106,31 @@ export default function ExpressionPage() {
 
   // ── Data loading ──────────────────────────────────────
   useEffect(() => {
-    loadTodayBoard();
     loadAll();
   }, []);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadTodayBoard();
     await loadAll();
     setRefreshing(false);
-  }, [loadTodayBoard, loadAll]);
+  }, [loadAll]);
 
-  // ── Derived: records for selected date ────────────────
+  // ── Derived: records for selected date, deduped by knowledgeItemId ──
   const dateRecords = useMemo(() => {
-    return records.filter((r) => {
+    const filtered = records.filter((r) => {
       const reviewDate = r.nextReviewAt?.slice(0, 10) ?? '';
       const createdDate = r.createdAt?.slice(0, 10) ?? '';
       return reviewDate === selectedDate || createdDate === selectedDate;
     });
+    // Deduplicate: keep only the most recently updated record per knowledge item
+    const seen = new Map<string, typeof filtered[number]>();
+    for (const r of filtered) {
+      const existing = seen.get(r.knowledgeItemId);
+      if (!existing || r.updatedAt > existing.updatedAt) {
+        seen.set(r.knowledgeItemId, r);
+      }
+    }
+    return Array.from(seen.values());
   }, [records, selectedDate]);
 
   // ── Derived: pending vs completed ─────────────────────
@@ -206,18 +214,7 @@ export default function ExpressionPage() {
   // ── Render ──────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* ═══ Header ═══ */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.replace('/home')}
-          style={styles.headerBtn}
-          activeOpacity={0.7}
-        >
-          <ChevronLeftIcon size={18} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>今日复述训练</Text>
-        <View style={styles.headerBtn} />
-      </View>
+      <PageHeader title="今日复述训练" />
 
       {/* ═══ Date Switcher ═══ */}
       <View style={styles.dateSwitcher}>
@@ -508,37 +505,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // ── Header ──
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: colors.surface,
-    borderBottomWidth: tokens.borderWidth.hairline,
-    borderBottomColor: '#D4CDC0',
-  },
-  headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.text.primary,
-    letterSpacing: 2,
-  },
   // ── Date Switcher ──
   dateSwitcher: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderBottomWidth: tokens.borderWidth.hairline,
-    borderBottomColor: '#D4CDC0',
+    borderBottomColor: colors.divider,
     paddingVertical: 6,
   },
   dateArrow: {
@@ -606,17 +579,14 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-  },
+  scrollContent: { ...pageContentPadding },
 
   // ── Overview Card ──
   overviewCard: {
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.lg,
     borderWidth: tokens.borderWidth.hairline,
-    borderColor: '#D4CDC0',
+    borderColor: colors.divider,
     padding: 16,
     marginBottom: 16,
     shadowColor: colors.primary,
@@ -701,13 +671,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.md,
     borderWidth: tokens.borderWidth.hairline,
-    borderColor: '#D4CDC0',
+    borderColor: colors.divider,
     paddingHorizontal: 10,
     gap: 6,
   },
   searchInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 14,
     color: colors.text.primary,
     paddingVertical: 0,
   },
@@ -719,7 +689,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.md,
     borderWidth: tokens.borderWidth.hairline,
-    borderColor: '#D4CDC0',
+    borderColor: colors.divider,
   },
   iconBtnActive: {
     backgroundColor: colors.primary,
@@ -736,7 +706,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: tokens.radius.md,
     borderWidth: tokens.borderWidth.hairline,
-    borderColor: '#D4CDC0',
+    borderColor: colors.divider,
     paddingVertical: 4,
     shadowColor: colors.primary,
     shadowOffset: { width: 1, height: 1 },
@@ -771,7 +741,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text.primary,
     marginBottom: 8,

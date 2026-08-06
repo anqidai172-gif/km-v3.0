@@ -1,6 +1,6 @@
 export const DB_NAME = 'knowledge_mesh.db';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const CREATE_TABLES_SQL = `
 -- Categories for knowledge classification
@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS categories (
   color         TEXT NOT NULL DEFAULT '#4A90D9',
   sort_order    INTEGER NOT NULL DEFAULT 0,
   is_active     INTEGER NOT NULL DEFAULT 1,
+  parent_id     TEXT,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -18,6 +19,7 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS knowledge_items (
   id                    TEXT PRIMARY KEY NOT NULL,
   category_id           TEXT NOT NULL,
+  sub_category_id       TEXT,
   title                 TEXT NOT NULL,
   content               TEXT NOT NULL,
   content_preview       TEXT NOT NULL,
@@ -98,11 +100,13 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
 
 -- Default categories
 INSERT OR IGNORE INTO categories (id, name, color, sort_order) VALUES
-  ('cat_tech', '科技', '#4A90D9', 0),
-  ('cat_history', '历史', '#FF9500', 1),
-  ('cat_philosophy', '哲学', '#AF52DE', 2),
-  ('cat_science', '科学', '#34C759', 3),
-  ('cat_literature', '文学', '#FF2D55', 4),
-  ('cat_business', '商业', '#5856D6', 5),
-  ('cat_other', '其他', '#6B7280', 99);
+  ('cat_methodology', '工作方法论', '#5856D6', 0),
+  ('cat_other', '未分类', '#6B7280', 99);
+`;
+
+/** Migration: v1 → v2 — add two-level category support */
+export const MIGRATE_V1_TO_V2 = `
+ALTER TABLE categories ADD COLUMN parent_id TEXT;
+ALTER TABLE knowledge_items ADD COLUMN sub_category_id TEXT;
+PRAGMA user_version = 2;
 `;

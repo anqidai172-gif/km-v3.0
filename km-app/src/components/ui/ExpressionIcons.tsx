@@ -399,11 +399,72 @@ export function TargetIcon({ size = 14, color = INK }: IconProps) {
   );
 }
 
+/* ── Copy (📋 → two overlapping docs, hand-drawn) ──────────── */
+export function CopyIcon({ size = 14, color = INK }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 14 14" fill="none">
+      {/* Back document */}
+      <Rect x={3.5} y={1.5} width={8} height={10} rx={1.2} stroke={color} strokeWidth={1} fill="none" strokeLinejoin="round" />
+      {/* Front document */}
+      <Rect x={1.5} y={3} width={8} height={10} rx={1.2} stroke={color} strokeWidth={1.2} fill="none" strokeLinejoin="round" />
+      {/* Text lines on front */}
+      <Line x1={3.8} y1={6} x2={7.2} y2={6} stroke={color} strokeWidth={0.8} strokeLinecap="round" opacity={0.4} />
+      <Line x1={3.8} y1={8} x2={6.5} y2={8} stroke={color} strokeWidth={0.8} strokeLinecap="round" opacity={0.4} />
+      <Line x1={3.8} y1={10} x2={7.5} y2={10} stroke={color} strokeWidth={0.8} strokeLinecap="round" opacity={0.4} />
+    </Svg>
+  );
+}
+
 /* ── Up Arrow (🔼 → modal header accent) ──────────────────── */
 export function UpArrowIcon({ size = 14, color = INK }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 14 14" fill="none">
       <Path d="M3 9L7 4L11 9" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    </Svg>
+  );
+}
+
+/** 手绘发送按钮（纸飞机朝上） */
+export function SendIcon({ size = 16, color = INK }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* 纸飞机朝上 — 机头向上，机身三角 + 折翼 */}
+      <Path
+        d="M12 2L3 20L21 20Z"
+        stroke={color}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* 左折翼 */}
+      <Path
+        d="M12 2L7 16L3 20"
+        stroke={color}
+        strokeWidth={1.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* 右折翼 */}
+      <Path
+        d="M12 2L17 16L21 20"
+        stroke={color}
+        strokeWidth={1.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {/* 中心折痕（虚） */}
+      <Path
+        d="M12 2L12 22"
+        stroke={color}
+        strokeWidth={0.9}
+        strokeLinecap="round"
+        strokeDasharray="3 3"
+        fill="none"
+        opacity={0.5}
+      />
     </Svg>
   );
 }
@@ -436,7 +497,8 @@ export type ExpressionIconName =
   | 'up-arrow'
   | 'constellation'
   | 'paperclip'
-  | 'target';
+  | 'target'
+  | 'copy';
 
 export function renderExpressionIcon(name: ExpressionIconName, size?: number, color?: string) {
   const props = { size, color };
@@ -468,5 +530,6 @@ export function renderExpressionIcon(name: ExpressionIconName, size?: number, co
     case 'constellation':  return <ConstellationIcon {...props} />;
     case 'paperclip':      return <PaperclipIcon {...props} />;
     case 'target':         return <TargetIcon {...props} />;
+    case 'copy':           return <CopyIcon {...props} />;
   }
 }

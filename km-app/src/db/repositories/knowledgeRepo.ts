@@ -4,6 +4,7 @@ import type { KnowledgeItem, KnowledgeCategory, VerificationResult } from '../..
 export interface KnowledgeRow {
   id: string;
   category_id: string;
+  sub_category_id: string | null;
   title: string;
   content: string;
   content_preview: string;
@@ -23,6 +24,7 @@ function rowToItem(row: KnowledgeRow): KnowledgeItem {
   return {
     id: row.id,
     categoryId: row.category_id,
+    subCategoryId: row.sub_category_id ?? undefined,
     title: row.title,
     content: row.content,
     contentPreview: row.content_preview,
@@ -88,10 +90,10 @@ export async function getKnowledgeItemById(id: string): Promise<KnowledgeItem | 
 export async function insertKnowledgeItem(item: KnowledgeItem): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO knowledge_items (id, category_id, title, content, content_preview, source_url, source_type, tags_json, embedding_pq_json, ai_summary, ai_classification_score, ai_verification_json, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO knowledge_items (id, category_id, sub_category_id, title, content, content_preview, source_url, source_type, tags_json, embedding_pq_json, ai_summary, ai_classification_score, ai_verification_json, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
-      item.id, item.categoryId, item.title, item.content, item.contentPreview,
+      item.id, item.categoryId, item.subCategoryId ?? null, item.title, item.content, item.contentPreview,
       item.sourceURL ?? null, item.sourceType, JSON.stringify(item.tags),
       item.embeddingPQ ? JSON.stringify(item.embeddingPQ) : null,
       item.aiSummary ?? null, item.aiClassificationScore ?? null,
@@ -104,12 +106,14 @@ export async function insertKnowledgeItem(item: KnowledgeItem): Promise<void> {
 export async function updateKnowledgeItem(item: KnowledgeItem): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    `UPDATE knowledge_items SET category_id=?, title=?, content=?, content_preview=?, source_url=?, source_type=?, tags_json=?, ai_summary=?, ai_classification_score=?, status=?, updated_at=?
+    `UPDATE knowledge_items SET category_id=?, sub_category_id=?, title=?, content=?, content_preview=?, source_url=?, source_type=?, tags_json=?, embedding_pq_json=?, ai_summary=?, ai_classification_score=?, ai_verification_json=?, status=?, updated_at=?
      WHERE id=?`,
     [
-      item.categoryId, item.title, item.content, item.contentPreview,
+      item.categoryId, item.subCategoryId ?? null, item.title, item.content, item.contentPreview,
       item.sourceURL ?? null, item.sourceType, JSON.stringify(item.tags),
+      item.embeddingPQ ? JSON.stringify(item.embeddingPQ) : null,
       item.aiSummary ?? null, item.aiClassificationScore ?? null,
+      item.aiVerificationResult ? JSON.stringify(item.aiVerificationResult) : null,
       item.status, item.updatedAt, item.id,
     ]
   );
@@ -117,6 +121,9 @@ export async function updateKnowledgeItem(item: KnowledgeItem): Promise<void> {
 
 export async function deleteKnowledgeItem(id: string): Promise<void> {
   const db = await getDatabase();
+  // Cascade: delete related training records and graph edges first
+  await db.runAsync('DELETE FROM training_records WHERE knowledge_item_id = ?', [id]);
+  await db.runAsync('DELETE FROM graph_edges WHERE source_id = ? OR target_id = ?', [id, id]);
   await db.runAsync('DELETE FROM knowledge_items WHERE id = ?', [id]);
 }
 
@@ -139,6 +146,7 @@ export async function getCategories(): Promise<KnowledgeCategory[]> {
     color: r.color,
     sortOrder: r.sort_order,
     isActive: !!r.is_active,
+    parentId: r.parent_id ?? undefined,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   }));
@@ -147,16 +155,56 @@ export async function getCategories(): Promise<KnowledgeCategory[]> {
 export async function insertCategory(cat: KnowledgeCategory): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'INSERT INTO categories (id, name, color, sort_order, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [cat.id, cat.name, cat.color, cat.sortOrder, cat.isActive ? 1 : 0, cat.createdAt, cat.updatedAt]
+    'INSERT INTO categories (id, name, color, sort_order, is_active, parent_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [cat.id, cat.name, cat.color, cat.sortOrder, cat.isActive ? 1 : 0, cat.parentId ?? null, cat.createdAt, cat.updatedAt]
   );
 }
 
 export async function updateCategory(cat: KnowledgeCategory): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'UPDATE categories SET name=?, color=?, sort_order=?, is_active=?, updated_at=? WHERE id=?',
-    [cat.name, cat.color, cat.sortOrder, cat.isActive ? 1 : 0, cat.updatedAt, cat.id]
+    'UPDATE categories SET name=?, color=?, sort_order=?, is_active=?, parent_id=?, updated_at=? WHERE id=?',
+    [cat.name, cat.color, cat.sortOrder, cat.isActive ? 1 : 0, cat.parentId ?? null, cat.updatedAt, cat.id]
+  );
+}
+
+export async function getParentCategories(): Promise<KnowledgeCategory[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM categories WHERE parent_id IS NULL AND is_active = 1 ORDER BY sort_order ASC'
+  );
+  return rows.map((r: any) => ({
+    id: r.id, name: r.name, color: r.color,
+    sortOrder: r.sort_order, isActive: !!r.is_active,
+    parentId: r.parent_id ?? undefined,
+    createdAt: r.created_at, updatedAt: r.updated_at,
+  }));
+}
+
+export async function getChildCategories(parentId: string): Promise<KnowledgeCategory[]> {
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<any>(
+    'SELECT * FROM categories WHERE parent_id = ? AND is_active = 1 ORDER BY sort_order ASC',
+    [parentId]
+  );
+  return rows.map((r: any) => ({
+    id: r.id, name: r.name, color: r.color,
+    sortOrder: r.sort_order, isActive: !!r.is_active,
+    parentId: r.parent_id ?? undefined,
+    createdAt: r.created_at, updatedAt: r.updated_at,
+  }));
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync('DELETE FROM categories WHERE id=?', [id]);
+}
+
+export async function reassignCategoryItems(fromCatId: string, toCatId: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE knowledge_items SET category_id=? WHERE category_id=?',
+    [toCatId, fromCatId]
   );
 }
 

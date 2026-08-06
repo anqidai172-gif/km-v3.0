@@ -5,6 +5,19 @@ export interface UserSettings {
   dailyReminderTime: string;
   passThreshold: number;
   categories: KnowledgeCategory[];
+  aiBaseURL: string;
+  aiModel: string;
+  aiApiKey: string;
+  videoServerURL: string;
+  // ASR 引擎配置
+  asrProvider: string;           // 'local_whisper' | 'tencent' | 'aliyun' | 'xunfei'
+  asrWhisperModel: string;      // 'tiny' | 'small' | 'medium'
+  asrTencentSecretId: string;
+  asrTencentSecretKey: string;
+  asrAliyunAppKey: string;
+  asrAliyunAccessToken: string;
+  asrXunfeiAppId: string;
+  asrXunfeiApiKey: string;
 }
 
 export interface AIClientConfig {

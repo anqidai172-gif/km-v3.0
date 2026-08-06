@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.primaryLight,
     borderWidth: tokens.borderWidth.hairline,
-    borderColor: '#D4CDC0',
+    borderColor: colors.divider,
   },
   ghost: {
     backgroundColor: 'transparent',

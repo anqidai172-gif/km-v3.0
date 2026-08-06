@@ -18,6 +18,7 @@ interface KnowledgeState {
 
   addCategory: (cat: Omit<KnowledgeCategory, 'id' | 'createdAt' | 'updatedAt'>) => Promise<KnowledgeCategory>;
   updateCategory: (id: string, updates: Partial<KnowledgeCategory>) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
 
   getItemById: (id: string) => KnowledgeItem | undefined;
   getItemsByCategory: (categoryId: string) => KnowledgeItem[];
@@ -74,6 +75,10 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     set((s) => ({
       items: s.items.filter((i) => i.id !== id),
     }));
+    // Also remove related training records from expression store immediately,
+    // so the expression page doesn't show "未知条目" for orphaned records
+    const { useExpressionStore } = require('./useExpressionStore');
+    useExpressionStore.getState().removeRecordsByKnowledgeId(id);
   },
 
   confirmItem: async (id) => {
@@ -100,6 +105,18 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
     await knowledgeRepo.updateCategory(updated);
     set((s) => ({
       categories: s.categories.map((c) => (c.id === id ? updated : c)),
+    }));
+  },
+
+  deleteCategory: async (id) => {
+    const categories = get().categories;
+    // If this is the only category, reassign items to 'cat_other' first
+    if (categories.length <= 1) {
+      await knowledgeRepo.reassignCategoryItems(id, 'cat_other');
+    }
+    await knowledgeRepo.deleteCategory(id);
+    set((s) => ({
+      categories: s.categories.filter((c) => c.id !== id),
     }));
   },
 

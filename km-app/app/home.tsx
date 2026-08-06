@@ -2,16 +2,17 @@
  * 首页 — 文学手作拓印 (Woodcut Letterpress)
  * 朱伊暗纹 + 干笔拓印边框 + 3D 凸版卡片
  */
-import React, { useMemo, useState, useCallback, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions,
-  Animated, PanResponder,
+  Animated, PanResponder, TextInput,
 } from 'react-native';
 import Svg, { Path, Circle, Rect, Line, G } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { format, addDays, subDays } from 'date-fns';
 import { colors, tokens, fontFamily } from '../src/theme';
+import { EmptyTrayIcon, SendIcon } from '../src/components/ui/ExpressionIcons';
 import { useExpressionStore } from '../src/stores/useExpressionStore';
 import { useKnowledgeStore } from '../src/stores/useKnowledgeStore';
 import type { TrainingRecord, TrainingState } from '../src/types';
@@ -31,70 +32,12 @@ const WEEKDAYS = ['周日','周一','周二','周三','周四','周五','周六'
    ═══════════════════════════════════════════════════════════ */
 
 /** 朱伊飞鸟 */
-function JouyBird() {
-  return (
-    <Svg width={75} height={75} viewBox="0 0 100 100" fill="none">
-      <G stroke="#4A3F35" strokeLinecap="round" strokeLinejoin="round">
-        <Path d="M 25 55 C 20 40, 35 25, 55 30 C 70 34, 82 48, 72 65 C 60 72, 40 70, 25 55 Z" strokeWidth={1.2} fill="none" />
-        <Path d="M 45 32 C 40 18, 55 10, 68 15 C 60 25, 52 28, 45 32 Z" strokeWidth={1} fill="#4A3F35" fillOpacity={0.1} />
-        <Path d="M 48 20 L 58 24 M 50 16 L 62 20 M 54 13 L 65 17" strokeWidth={0.7} />
-        <Path d="M 25 55 L 10 62 L 20 50 L 5 54 L 22 45" strokeWidth={0.9} fill="none" />
-        <Circle cx={62} cy={38} r={1.5} fill="#4A3F35" />
-        <Path d="M 68 38 L 76 40 L 67 43" strokeWidth={0.9} fill="none" />
-      </G>
-    </Svg>
-  );
-}
-
-/** 朱伊蔓草花蕾 */
-function JouyBotanical() {
-  return (
-    <Svg width={100} height={85} viewBox="0 0 120 100" fill="none">
-      <G stroke="#4A3F35" strokeLinecap="round">
-        <Path d="M 110 90 Q 70 95, 50 60 T 10 15" strokeWidth={1.4} fill="none" />
-        <Path d="M 50 60 Q 30 75, 15 85" strokeWidth={0.9} fill="none" />
-        <Path d="M 50 60 C 40 45, 60 35, 75 42 C 65 52, 58 56, 50 60 Z" strokeWidth={1} fill="#4A3F35" fillOpacity={0.12} />
-        <Path d="M 56 46 Q 64 45, 69 49" strokeWidth={0.6} />
-        <Path d="M 54 50 Q 61 49, 66 53" strokeWidth={0.6} />
-        <Path d="M 10 15 C 2 8, 12 0, 18 8 C 12 12, 10 15, 10 15 Z" strokeWidth={1} fill="#4A3F35" fillOpacity={0.2} />
-        <Path d="M 15 85 C 8 78, 18 70, 24 78 Z" strokeWidth={0.8} fill="none" />
-      </G>
-    </Svg>
-  );
-}
-
-/** 朱伊墨水瓶与羽毛笔 */
-function JouyQuill() {
-  return (
-    <Svg width={140} height={35} viewBox="0 0 160 40" fill="none">
-      <G stroke="#4A3F35" strokeLinecap="round">
-        <Rect x={20} y={16} width={22} height={20} rx={3} strokeWidth={1.2} fill="none" />
-        <Rect x={24} y={10} width={14} height={6} rx={1} strokeWidth={1} fill="#4A3F35" fillOpacity={0.15} />
-        <Line x1={22} y1={26} x2={40} y2={26} strokeWidth={0.7} strokeDasharray="2 1" />
-        <Path d="M 31 12 L 135 2" strokeWidth={1.2} fill="none" />
-        <Path d="M 60 9 C 85 0, 115 -2, 140 1 C 110 8, 80 12, 60 9 Z" strokeWidth={0.8} fill="#4A3F35" fillOpacity={0.12} />
-        <Path d="M 80 6 L 84 10 M 95 4 L 99 8 M 110 3 L 114 7" strokeWidth={0.6} />
-      </G>
-    </Svg>
-  );
-}
-
 /** 木刻嫩芽 */
 function WoodcutSprout() {
   return (
     <Svg width={30} height={30} viewBox="0 0 100 100" fill="none">
       <Path d="M 50 85 C 48 55, 35 35, 15 20 M 50 50 C 65 38, 80 32, 88 30" stroke={colors.primary} strokeWidth={7} strokeLinecap="round" />
       <Circle cx={20} cy={18} r={4} fill={colors.accent} />
-    </Svg>
-  );
-}
-
-/** 素材库图标 — 灵感小草 (16px) */
-function IconSprout() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 100 100" fill="none">
-      <Path d="M 50 88 C 48 58, 36 38, 18 24 M 50 52 C 64 40, 78 34, 86 32" stroke={colors.primary} strokeWidth={8} strokeLinecap="round" />
-      <Circle cx={22} cy={22} r={4.5} fill={colors.accent} />
     </Svg>
   );
 }
@@ -145,13 +88,6 @@ function IconMic() {
 function HeaderLayer() {
   return (
     <View style={S.headerLayer}>
-      {/* 朱伊暗纹背景 */}
-      <View style={S.jouyContainer} pointerEvents="none">
-        <View style={[S.jouyEl, { left: 12, top: 8 }]}><JouyBird /></View>
-        <View style={[S.jouyEl, { right: 8, top: 2 }]}><JouyBotanical /></View>
-        <View style={[S.jouyEl, { alignSelf: 'center', bottom: -5 }]}><JouyQuill /></View>
-      </View>
-      {/* 品牌标识 */}
       <View style={S.brandSprout}>
         <WoodcutSprout />
         <Text style={S.brandTitle}>灵感绿芽</Text>
@@ -163,12 +99,9 @@ function HeaderLayer() {
 /** 状态概览 */
 function StatusOverview({ count }:{count:number}) {
   return (
-    <View style={S.statusRow}>
-      <Text style={S.statusBanner}>
-        今天已成功内化知识 <Text style={S.goldAccent}>{count}</Text> 条
-      </Text>
-      <IconSprout />
-    </View>
+    <Text style={S.statusBanner}>
+      今天已成功内化知识 <Text style={S.goldAccent}>{count}</Text> 条
+    </Text>
   );
 }
 
@@ -291,9 +224,9 @@ function KnowledgeCard({ record, item, cat, pos, onPress }: {
           {/* 底部栏 */}
           <View style={S.parchFoot}>
             {cat ? (
-              <View style={S.tagWrap}>
-                <View style={S.tagPencilCanvas} pointerEvents="none">
-                  <Svg width={80} height={24} viewBox="0 0 80 24">
+              <View style={S.cardTagWrap}>
+                <View style={S.cardTagPencil} pointerEvents="none">
+                  <Svg width="100%" height="100%" viewBox="0 0 80 24" preserveAspectRatio="none">
                     <Rect x={2} y={2} width={76} height={20}
                       stroke="#3A3530" strokeWidth={1.2} strokeDasharray="12 4 8 3 16 4"
                       strokeLinecap="round" fill="none" opacity={0.38} rx={3} ry={3} />
@@ -302,21 +235,25 @@ function KnowledgeCard({ record, item, cat, pos, onPress }: {
                       strokeLinecap="round" fill="none" opacity={0.30} rx={4} ry={2} />
                   </Svg>
                 </View>
-                <View style={S.tag}><Text style={S.tagText}>📂 {cat.name}</Text></View>
+                <View style={S.cardTagInner}>
+                  <Text style={S.cardTagText}>{cat.name}</Text>
+                </View>
               </View>
             ) : null}
-            <View style={S.tagWrap}>
-              <View style={S.tagPencilCanvas} pointerEvents="none">
-                <Svg width={72} height={24} viewBox="0 0 72 24">
-                  <Rect x={2} y={2} width={68} height={20}
+            <View style={S.cardTagWrap}>
+              <View style={S.cardTagPencil} pointerEvents="none">
+                <Svg width="100%" height="100%" viewBox="0 0 80 24" preserveAspectRatio="none">
+                  <Rect x={2} y={2} width={76} height={20}
                     stroke="#3A3530" strokeWidth={1.2} strokeDasharray="12 4 8 3 16 4"
                     strokeLinecap="round" fill="none" opacity={0.38} rx={3} ry={3} />
-                  <Rect x={3} y={1} width={66} height={22}
+                  <Rect x={3} y={1} width={74} height={22}
                     stroke="#4A4440" strokeWidth={0.9} strokeDasharray="6 5 10 3 8 4"
                     strokeLinecap="round" fill="none" opacity={0.30} rx={4} ry={2} />
                 </Svg>
               </View>
-              <View style={S.tag}><Text style={S.tagText}>{g.glyph} {g.label}</Text></View>
+              <View style={S.cardTagInner}>
+                <Text style={S.cardTagText}>{g.glyph} {g.label}</Text>
+              </View>
             </View>
             <View style={S.footSpacer} />
             {record.bestScore!=null
@@ -353,32 +290,36 @@ function KnowledgeCard({ record, item, cat, pos, onPress }: {
         </View>
         <View style={S.sideFoot}>
           {cat ? (
-            <View style={S.tagSmWrap}>
-              <View style={S.tagSmPencilCanvas} pointerEvents="none">
-                <Svg width={66} height={20} viewBox="0 0 66 20">
-                  <Rect x={2} y={2} width={62} height={16}
+            <View style={S.cardTagSmWrap}>
+              <View style={S.cardTagSmPencil} pointerEvents="none">
+                <Svg width="100%" height="100%" viewBox="0 0 60 20" preserveAspectRatio="none">
+                  <Rect x={2} y={2} width={56} height={16}
                     stroke="#3A3530" strokeWidth={1.0} strokeDasharray="10 3 6 2 12 3"
                     strokeLinecap="round" fill="none" opacity={0.34} rx={2} ry={2} />
-                  <Rect x={3} y={1} width={60} height={18}
+                  <Rect x={3} y={1} width={54} height={18}
                     stroke="#4A4440" strokeWidth={0.7} strokeDasharray="5 4 8 2 6 3"
                     strokeLinecap="round" fill="none" opacity={0.26} rx={3} ry={2} />
                 </Svg>
               </View>
-              <View style={S.tagSm}><Text style={S.tagSmText}>📂 {cat.name}</Text></View>
+              <View style={S.cardTagSmInner}>
+                <Text style={S.cardTagSmText}>{cat.name}</Text>
+              </View>
             </View>
           ) : null}
-          <View style={S.tagSmWrap}>
-            <View style={S.tagSmPencilCanvas} pointerEvents="none">
-              <Svg width={58} height={20} viewBox="0 0 58 20">
-                <Rect x={2} y={2} width={54} height={16}
+          <View style={S.cardTagSmWrap}>
+            <View style={S.cardTagSmPencil} pointerEvents="none">
+              <Svg width="100%" height="100%" viewBox="0 0 60 20" preserveAspectRatio="none">
+                <Rect x={2} y={2} width={56} height={16}
                   stroke="#3A3530" strokeWidth={1.0} strokeDasharray="10 3 6 2 12 3"
                   strokeLinecap="round" fill="none" opacity={0.34} rx={2} ry={2} />
-                <Rect x={3} y={1} width={52} height={18}
+                <Rect x={3} y={1} width={54} height={18}
                   stroke="#4A4440" strokeWidth={0.7} strokeDasharray="5 4 8 2 6 3"
                   strokeLinecap="round" fill="none" opacity={0.26} rx={3} ry={2} />
               </Svg>
             </View>
-            <View style={S.tagSm}><Text style={S.tagSmText}>{g.glyph} {g.label}</Text></View>
+            <View style={S.cardTagSmInner}>
+              <Text style={S.cardTagSmText}>{g.glyph} {g.label}</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -386,16 +327,19 @@ function KnowledgeCard({ record, item, cat, pos, onPress }: {
   );
 }
 
-/** 页面指示点 */
+/** 页面指示点 — 紧凑居中，超过 7 张时显示序号 */
 function PageDots({ total, current, onPress }:{total:number;current:number;onPress:(i:number)=>void}) {
   if(total<=1)return null;
   return (
     <View style={S.dotsRow}>
-      {Array.from({length:total}).map((_,i)=>(
-        <TouchableOpacity key={i} onPress={()=>onPress(i)}>
-          <View style={[S.dot, i===current&&S.dotActive]}/>
-        </TouchableOpacity>
-      ))}
+      {total <= 7
+        ? Array.from({length:total}).map((_,i)=>(
+            <TouchableOpacity key={i} onPress={()=>onPress(i)}>
+              <View style={[S.dot, i===current&&S.dotActive]}/>
+            </TouchableOpacity>
+          ))
+        : <Text style={S.dotCounter}>{current + 1} / {total}</Text>
+      }
     </View>
   );
 }
@@ -428,7 +372,7 @@ function ActionBadges({ inProgress, onRandomWake }:{inProgress:number;onRandomWa
         <View style={S.badgeBody}>
           <View style={S.badgeIconRow}>
             <IconWake />
-            <Text style={S.badgeText}>随机唤醒</Text>
+            <Text style={S.badgeText}>随机训练</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -464,12 +408,25 @@ function ActionBadges({ inProgress, onRandomWake }:{inProgress:number;onRandomWa
   );
 }
 
-/** 全局输入 — SVG 铅笔手绘边框 + 硬影 */
-function GlobalInput({ onPress }:{onPress:()=>void}) {
+/** 全局输入 — SVG 铅笔手绘边框 + TextInput + 发送按钮 */
+function GlobalInput({ itemId, itemTitle }: { itemId: string | null; itemTitle: string }) {
+  const router = useRouter();
+  const [text, setText] = useState('');
   const inputW = SCREEN_WIDTH - 32;
+
+  const handleSend = () => {
+    const trimmed = text.trim();
+    if (!trimmed || !itemId) return;
+    router.push({
+      pathname: `/expression/${itemId}`,
+      params: { initialText: trimmed },
+    });
+    setText('');
+  };
+
   return (
     <View style={S.inputWrap}>
-      <TouchableOpacity style={S.inputBoxWrap} onPress={onPress} activeOpacity={0.85}>
+      <View style={S.inputBoxWrap}>
         {/* SVG 铅笔边框 */}
         <View style={S.inputPencilCanvas} pointerEvents="none">
           <Svg width={inputW} height={52} viewBox={`0 0 ${inputW} 52`}>
@@ -491,10 +448,20 @@ function GlobalInput({ onPress }:{onPress:()=>void}) {
           </Svg>
         </View>
         <View style={S.inputBody}>
-          <IconMic />
-          <Text style={S.inputPH} numberOfLines={1}> 输入你对当前知识的复述...</Text>
+          <TextInput
+            style={S.textInput}
+            value={text}
+            onChangeText={setText}
+            placeholder={`复述「${itemTitle}」…`}
+            placeholderTextColor={colors.text.tertiary}
+            returnKeyType="send"
+            onSubmitEditing={handleSend}
+          />
+          <TouchableOpacity onPress={handleSend} activeOpacity={0.7} style={S.sendBtn}>
+            <SendIcon size={18} color={colors.primary} />
+          </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -509,6 +476,7 @@ export default function HomePage() {
   const categories=useKnowledgeStore(s=>s.categories);
   const [selectedDate,setSelectedDate]=useState(new Date());
   const todayStr=useMemo(()=>format(new Date(),'yyyy-MM-dd'),[]);
+  const selectedDateStr = useMemo(() => format(selectedDate, 'yyyy-MM-dd'), [selectedDate]);
   const confirmedItemIds=useMemo(()=>new Set(items.filter(i=>i.status==='confirmed').map(i=>i.id)),[items]);
   const todayStats=useMemo(()=>{
     const rel=records.filter(r=>confirmedItemIds.has(r.knowledgeItemId));
@@ -517,16 +485,34 @@ export default function HomePage() {
       inProgress:rel.filter(r=>r.state==='pending_retell'||r.state==='pending_restate').length,
     };
   },[records,confirmedItemIds,todayStr]);
-  const carouselCards=useMemo(()=>records.filter(r=>confirmedItemIds.has(r.knowledgeItemId)).sort((a,b)=>b.priority-a.priority),[records,confirmedItemIds]);
   const getItem=useCallback((id:string)=>items.find(i=>i.id===id),[items]);
   const getCat=useCallback((id:string)=>categories.find(c=>c.id===id),[categories]);
+
+  // Carousel: only today's confirmed items
+  const carouselCards=useMemo(()=>{
+    const seen=new Set<string>();
+    return records
+      .filter(r=>{
+        if(!confirmedItemIds.has(r.knowledgeItemId)) return false;
+        const it = getItem(r.knowledgeItemId);
+        return !!it?.createdAt?.startsWith(selectedDateStr);
+      })
+      .sort((a,b)=>b.priority-a.priority)
+      .filter(r=>{if(seen.has(r.knowledgeItemId))return false;seen.add(r.knowledgeItemId);return true;});
+  },[records,confirmedItemIds,selectedDateStr,getItem]);
+
+  // Load data on mount (expression records + knowledge items)
+  const loadAllExpr = useExpressionStore((s) => s.loadAll);
+  const loadAllKn = useKnowledgeStore((s) => s.loadAll);
+  useEffect(() => { loadAllExpr(); loadAllKn(); }, []);
 
   // === 堆叠拖拽轮播状态 ===
   const [activeIndex, setActiveIndex] = useState(0);
   const total = carouselCards.length;
-  const wrapIdx = (i: number) => ((i % total) + total) % total;
-  const prevIdx = wrapIdx(activeIndex - 1);
-  const nextIdx = wrapIdx(activeIndex + 1);
+  const hasPrev = activeIndex > 0;
+  const hasNext = activeIndex < total - 1;
+  const prevIdx = activeIndex - 1;
+  const nextIdx = activeIndex + 1;
   const SWIPE_THRESHOLD = CARD_W * 0.3;
 
   // 动画值
@@ -555,9 +541,9 @@ export default function HomePage() {
 
   // PanResponder — 用 ref 读取最新值
   const panResponder = useRef(PanResponder.create({
-    onStartShouldSetPanResponderCapture: () => !isAnimating.current && totalRef.current > 1,
-    onMoveShouldSetPanResponderCapture: (_, gs) =>
-      Math.abs(gs.dx) > 5 && !isAnimating.current && totalRef.current > 1,
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gs) =>
+      Math.abs(gs.dx) > 8 && Math.abs(gs.dx) > Math.abs(gs.dy) * 2 && !isAnimating.current && totalRef.current > 1,
     onPanResponderMove: (_, gs) => {
       if (!isAnimating.current) dragX.setValue(gs.dx);
     },
@@ -565,12 +551,10 @@ export default function HomePage() {
       if (isAnimating.current) return;
       const t = totalRef.current;
       const idx = activeIdxRef.current;
-      if (gs.dx < -SWIPE_THRESHOLD && t > 1) {
-        const nxt = ((idx + 1) % t + t) % t;
-        animateToIndex(nxt, -1);
-      } else if (gs.dx > SWIPE_THRESHOLD && t > 1) {
-        const prv = ((idx - 1) % t + t) % t;
-        animateToIndex(prv, 1);
+      if (gs.dx < -SWIPE_THRESHOLD && t > 1 && idx < t - 1) {
+        animateToIndex(idx + 1, -1);
+      } else if (gs.dx > SWIPE_THRESHOLD && t > 1 && idx > 0) {
+        animateToIndex(idx - 1, 1);
       } else {
         Animated.spring(dragX, {
           toValue: 0, useNativeDriver: true,
@@ -591,24 +575,28 @@ export default function HomePage() {
   const goToday=()=>setSelectedDate(new Date());
   const dayOfWeek=WEEKDAYS[selectedDate.getDay()];
   const dateDisplay=format(selectedDate,'yyyy年 M月 d日');
-  const handleCardPress=(r:TrainingRecord)=>router.push(`/expression/${r.knowledgeItemId}`);
+  const handleCardPress=(r:TrainingRecord)=>router.push(`/knowledge/${r.knowledgeItemId}`);
   const handleRandomWake=()=>{
     const pending=records.filter(r=>confirmedItemIds.has(r.knowledgeItemId)&&(r.state==='pending_retell'||r.state==='pending_restate'));
     if(pending.length)router.push(`/expression/${pending[Math.floor(Math.random()*pending.length)].knowledgeItemId}`);
   };
 
-  // 渲染单张卡片
-  const renderCard = (record: TrainingRecord, pos: 'left'|'center'|'right', animStyle?: any) => (
-    <Animated.View style={animStyle}>
-      <KnowledgeCard
-        record={record}
-        item={getItem(record.knowledgeItemId)}
-        cat={getCat(record.knowledgeItemId)}
-        pos={pos}
-        onPress={() => handleCardPress(record)}
-      />
-    </Animated.View>
-  );
+  // 渲染单张卡片 — 只展示第一个选中的父分类
+  const renderCard = (record: TrainingRecord, pos: 'left'|'center'|'right', animStyle?: any) => {
+    const item = getItem(record.knowledgeItemId);
+    const cat = item ? getCat(item.categoryId) : undefined;
+    return (
+      <Animated.View style={animStyle}>
+        <KnowledgeCard
+          record={record}
+          item={item}
+          cat={cat}
+          pos={pos}
+          onPress={() => handleCardPress(record)}
+        />
+      </Animated.View>
+    );
+  };
 
   return (
     <SafeAreaView style={S.root} edges={['top']}>
@@ -652,31 +640,35 @@ export default function HomePage() {
           {total > 0 ? (
             <View style={S.carouselWrap}>
               <View style={S.carouselStage}>
-                {/* 左后景 — 右滑时滑入中心 */}
-                <Animated.View style={[S.stackLeft, {
-                  transform: [
-                    { perspective: CARD_W * 2 },
-                    { translateX: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [0, 0, CARD_W * 0.35], extrapolate: 'clamp' }) },
-                    { rotateY: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: ['-15deg', '-8deg', '0deg'], extrapolate: 'clamp' }) },
-                    { scale: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [0.82, 0.82, 1.0], extrapolate: 'clamp' }) },
-                  ],
-                  opacity: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [0.3, 0.45, 1.0], extrapolate: 'clamp' }),
-                }]}>
-                  {total > 1 && carouselCards[prevIdx] && renderCard(carouselCards[prevIdx], 'left')}
-                </Animated.View>
+                {/* 左后景 — 右滑时滑入中心 (only if hasPrev) */}
+                {hasPrev && (
+                  <Animated.View style={[S.stackLeft, {
+                    transform: [
+                      { perspective: CARD_W * 2 },
+                      { translateX: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [0, 0, CARD_W * 0.35], extrapolate: 'clamp' }) },
+                      { rotateY: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: ['-15deg', '-8deg', '0deg'], extrapolate: 'clamp' }) },
+                      { scale: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [0.82, 0.82, 1.0], extrapolate: 'clamp' }) },
+                    ],
+                    opacity: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [0.3, 0.45, 1.0], extrapolate: 'clamp' }),
+                  }]}>
+                    {carouselCards[prevIdx] && renderCard(carouselCards[prevIdx], 'left')}
+                  </Animated.View>
+                )}
 
-                {/* 右后景 — 左滑时滑入中心 */}
-                <Animated.View style={[S.stackRight, {
-                  transform: [
-                    { perspective: CARD_W * 2 },
-                    { translateX: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [-CARD_W * 0.65, 0, 0], extrapolate: 'clamp' }) },
-                    { rotateY: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: ['0deg', '8deg', '15deg'], extrapolate: 'clamp' }) },
-                    { scale: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [1.0, 0.82, 0.82], extrapolate: 'clamp' }) },
-                  ],
-                  opacity: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [1.0, 0.45, 0.3], extrapolate: 'clamp' }),
-                }]}>
-                  {total > 1 && carouselCards[nextIdx] && renderCard(carouselCards[nextIdx], 'right')}
-                </Animated.View>
+                {/* 右后景 — 左滑时滑入中心 (only if hasNext) */}
+                {hasNext && (
+                  <Animated.View style={[S.stackRight, {
+                    transform: [
+                      { perspective: CARD_W * 2 },
+                      { translateX: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [-CARD_W * 0.65, 0, 0], extrapolate: 'clamp' }) },
+                      { rotateY: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: ['0deg', '8deg', '15deg'], extrapolate: 'clamp' }) },
+                      { scale: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [1.0, 0.82, 0.82], extrapolate: 'clamp' }) },
+                    ],
+                    opacity: dragX.interpolate({ inputRange: [-CARD_W, 0, CARD_W], outputRange: [1.0, 0.45, 0.3], extrapolate: 'clamp' }),
+                  }]}>
+                    {carouselCards[nextIdx] && renderCard(carouselCards[nextIdx], 'right')}
+                  </Animated.View>
+                )}
 
                 {/* 前景中心卡 — 可拖拽，翻页抬起 */}
                 <Animated.View
@@ -695,14 +687,12 @@ export default function HomePage() {
               </View>
               <PageDots total={total} current={activeIndex} onPress={(i) => {
                 if (i === activeIndex || isAnimating.current) return;
-                const diff = i - activeIndex;
-                const wrappedDiff = diff > total/2 ? diff - total : (diff < -total/2 ? diff + total : diff);
-                animateToIndex(i, wrappedDiff > 0 ? 1 : -1);
+                animateToIndex(i, i > activeIndex ? 1 : -1);
               }}/>
             </View>
           ) : (
             <View style={S.emptyWrap}>
-              <Text style={S.emptyIcon}>📖</Text>
+              <EmptyTrayIcon size={48} color={colors.text.secondary} />
               <Text style={S.emptyTitle}>暂无训练内容</Text>
               <Text style={S.emptyHint}>前往「知识输入」添加文章或文本，{'\n'}AI 解析后即可开始复述训练</Text>
             </View>
@@ -716,7 +706,13 @@ export default function HomePage() {
 
         {/* 固定于底部的语音输入框 */}
         <View style={S.inputFixedWrap}>
-          <GlobalInput onPress={()=>router.push('/input')}/>
+          <GlobalInput
+            itemId={carouselCards[activeIndex]?.knowledgeItemId ?? null}
+            itemTitle={(() => {
+              const item = getItem(carouselCards[activeIndex]?.knowledgeItemId ?? '');
+              return item?.title || '当前知识';
+            })()}
+          />
         </View>
       </View>
     </SafeAreaView>
@@ -735,8 +731,6 @@ const S = StyleSheet.create({
 
   /* ── 页眉 — 朱伊暗纹区 ──────────────────────────────── */
   headerLayer: { height: HDR_HEIGHT, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', zIndex: 3 },
-  jouyContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.22 },
-  jouyEl: { position: 'absolute' },
   brandSprout: { zIndex: 2, alignItems: 'center', gap: 2 },
   /* 笨拙雕刻感标题 — 不完美的字距与粗细 */
   brandTitle: { fontFamily, fontSize: 14, letterSpacing: 3, fontWeight: '700', color: colors.primary, borderBottomWidth: 1, borderBottomColor: 'rgba(23,21,19,0.4)', paddingBottom: 2 },
@@ -756,7 +750,6 @@ const S = StyleSheet.create({
   sheetInner: { paddingHorizontal: 14, paddingTop: 24, paddingBottom: 10, flexGrow: 1, justifyContent: 'space-between' },
 
   /* ── 状态概览 ──────────────────────────────────────── */
-  statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginBottom: 2 },
   statusBanner: { textAlign: 'center', fontSize: 15, fontWeight: '600', color: colors.primary, letterSpacing: 0.5, paddingHorizontal: 20 },
   goldAccent: { color: colors.accent, fontFamily, fontWeight: '700', fontSize: 17 },
 
@@ -807,7 +800,7 @@ const S = StyleSheet.create({
   parchTitle: { fontSize: 17, lineHeight: 18, fontWeight: '600', color: '#24211D' },
   parchQuote: { fontSize: 14, lineHeight: 19, color: '#3A3530', marginTop: 7, letterSpacing: 0.3 },
   parchFoot: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     marginTop: 8, paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(23,21,19,0.1)',
   },
@@ -829,35 +822,31 @@ const S = StyleSheet.create({
   sideContent: { flex: 1 },
   sideTitle: { fontSize: 13, fontWeight: '600', color: colors.primary, lineHeight: 20 },
   sideFoot: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
     marginTop: 10, paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(23,21,19,0.08)',
   },
-  tagSmWrap: { position: 'relative' },
-  tagSmPencilCanvas: {
-    position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, zIndex: 0,
-  },
-  tagSm: {
-    borderRadius: 3, backgroundColor: 'rgba(245,240,230,0.5)',
-    paddingVertical: 2, paddingHorizontal: 6,
-  },
-  tagSmText: { fontSize: 10, color: colors.text.secondary },
-
-  /* ── 标签 ──────────────────────────────────────────── */
-  tagWrap: { position: 'relative' },
-  tagPencilCanvas: {
-    position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, zIndex: 0,
-  },
-  tag: {
+  /* ── 卡片内标签（手绘铅笔描边，与 SwipeableTaskCard 一致） ── */
+  cardTagWrap: { position: 'relative', marginRight: 4 },
+  cardTagPencil: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, zIndex: 0 },
+  cardTagInner: {
     borderRadius: 3, backgroundColor: 'rgba(245,240,230,0.5)',
     paddingVertical: 3, paddingHorizontal: 8,
   },
-  tagText: { fontSize: 11, color: colors.text.secondary },
+  cardTagText: { fontSize: 11, fontWeight: '500', color: colors.text.secondary },
+  cardTagSmWrap: { position: 'relative', marginRight: 2 },
+  cardTagSmPencil: { position: 'absolute', top: -2, left: -2, right: -2, bottom: -2, zIndex: 0 },
+  cardTagSmInner: {
+    borderRadius: 2, backgroundColor: 'rgba(245,240,230,0.5)',
+    paddingVertical: 2, paddingHorizontal: 5,
+  },
+  cardTagSmText: { fontSize: 10, color: colors.text.secondary },
 
   /* ── 指示点 ────────────────────────────────────────── */
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 16 },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.text.secondary },
-  dotActive: { backgroundColor: colors.primary, transform: [{ scale: 1.4 }] },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 14, height: 20 },
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.text.tertiary },
+  dotActive: { backgroundColor: colors.primary, width: 6, height: 6, borderRadius: 3 },
+  dotCounter: { fontSize: 12, color: colors.text.tertiary, fontFamily, letterSpacing: 1 },
 
   /* ── 空状态 ────────────────────────────────────────── */
   emptyWrap: { alignItems: 'center', justifyContent: 'center', height: 300 },
@@ -895,10 +884,18 @@ const S = StyleSheet.create({
   inputBody: {
     position: 'relative', zIndex: 4, flex: 1,
     backgroundColor: colors.background, borderRadius: 2,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center',
+    paddingLeft: 14, paddingRight: 14,
+    paddingBottom: 6, // nudge text + send btn up 3px
   },
-  inputPH: { fontSize: 15, color: colors.text.secondary, letterSpacing: 0.5, marginLeft: 8 },
+  textInput: {
+    flex: 1, fontSize: 15, color: colors.text.primary,
+    textAlignVertical: 'center', fontFamily, paddingVertical: 0,
+  },
+  sendBtn: {
+    width: 38, height: 38,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   /* ── 尾注 (极致干净、细小、无手绘滤镜) ────────────── */
   posterFooter: { alignItems: 'center', paddingTop: 12, marginBottom: 4 },

@@ -1,67 +1,56 @@
-// Voice recording and speech-to-text service
-// Uses expo-audio for recording and expo-speech-recognition for STT
-// When expo-speech-recognition is not installed, provides mock functionality
+// Voice recording transcription service
+// Sends recorded audio (base64) to server.js for ASR transcription
+// Recording itself is handled by useVoice hook via expo-audio
 
-let isRecording = false;
+import { resolveServerURL } from '../ai/videoParsingService';
+import { useSettingsStore } from '../../stores/useSettingsStore';
 
-export function getIsRecording(): boolean {
-  return isRecording;
-}
+/** 将 base64 音频发送到 server.js 做语音转写，返回文本 */
+export async function sendToServerForTranscription(
+  audioBase64: string,
+  mimeType: string,
+): Promise<string> {
+  const settings = useSettingsStore.getState().settings;
+  const { url: baseURL } = await resolveServerURL(settings.videoServerURL);
 
-export async function startRecording(): Promise<void> {
+  const body: Record<string, string> = {
+    audio: audioBase64,
+    mimeType: mimeType || 'audio/m4a',
+    asrProvider: settings.asrProvider || 'local_whisper',
+    asrWhisperModel: settings.asrWhisperModel || 'tiny',
+  };
+  if (settings.asrTencentSecretId) body.asrTencentSecretId = settings.asrTencentSecretId;
+  if (settings.asrTencentSecretKey) body.asrTencentSecretKey = settings.asrTencentSecretKey;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout for long audio
+
+  let resp: Response;
   try {
-    // In production, use expo-audio:
-    // const { recording } = await Audio.Recording.createAsync(
-    //   Audio.RecordingOptionsPresets.HIGH_QUALITY
-    // );
-    isRecording = true;
-    console.log('[VoiceService] Recording started');
-  } catch (error) {
-    console.error('[VoiceService] Failed to start recording:', error);
-    isRecording = false;
-    throw error;
+    resp = await fetch(`${baseURL}/api/transcribe-audio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json; charset=utf-8' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (e: any) {
+    clearTimeout(timeoutId);
+    if (e.name === 'AbortError') {
+      throw new Error('语音转写超时，请检查服务器是否正常运行');
+    }
+    throw new Error('无法连接语音转写服务，请检查设置中的服务器地址');
   }
-}
+  clearTimeout(timeoutId);
 
-export async function stopRecording(): Promise<string> {
-  try {
-    // In production, stop the recording and get URI:
-    // await recording.stopAndUnloadAsync();
-    // const uri = recording.getURI();
-    // Then use expo-speech-recognition to transcribe
-
-    isRecording = false;
-    console.log('[VoiceService] Recording stopped');
-
-    // Return mock transcription for now
-    return generateMockTranscription();
-  } catch (error) {
-    console.error('[VoiceService] Failed to stop recording:', error);
-    isRecording = false;
-    throw error;
+  const data = await resp.json().catch(() => null);
+  if (!data) {
+    throw new Error('语音转写服务返回异常，请重试');
   }
-}
-
-export async function transcribeAudio(audioUri: string): Promise<string> {
-  try {
-    // In production, use expo-speech-recognition:
-    // const result = await SpeechRecognition.startListeningAsync({
-    //   lang: 'zh-CN',
-    //   interimResults: true,
-    // });
-    console.log('[VoiceService] Transcribing:', audioUri);
-    return generateMockTranscription();
-  } catch (error) {
-    console.error('[VoiceService] Transcription failed:', error);
-    throw error;
+  if (!data.success) {
+    throw new Error(data.error || '语音转写失败');
   }
-}
-
-function generateMockTranscription(): string {
-  const templates = [
-    '这个知识点主要讲的是如何通过系统化的方法将碎片化信息转化为可内化的知识体系。核心思想是建立一个输入、解析、验真、入库、复述、打分的完整闭环...',
-    '我认为这个知识的核心要点有三个：第一是要有结构化的输入方式，第二是要经过AI辅助的验证过程，第三是通过反复的口头表达来加深记忆...',
-    '根据我的理解，知识内化的关键不在于存储了多少信息，而在于能否在需要的时候准确地调用和表达。这需要通过刻意练习来实现...',
-  ];
-  return templates[Math.floor(Math.random() * templates.length)];
+  if (!data.text || data.text.trim().length === 0) {
+    throw new Error('未识别到语音内容，请重试');
+  }
+  return data.text;
 }

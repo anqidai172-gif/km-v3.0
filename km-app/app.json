@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "知网",
+    "name": "Melt",
     "slug": "knowledge-mesh",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,6 +15,7 @@
       }
     },
     "android": {
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -23,8 +24,13 @@
       },
       "permissions": [
         "RECORD_AUDIO",
-        "NOTIFICATIONS"
-      ]
+        "NOTIFICATIONS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ],
+      "package": "com.diana_daq.knowledgemesh"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,7 +46,14 @@
           "color": "#4A90D9"
         }
       ],
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      "expo-sharing"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "406b435c-cf22-4417-a7f8-78b771744fd2"
+      }
+    }
   }
 }

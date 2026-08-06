@@ -46,29 +46,33 @@ ${request.appealReason ? `【申诉】用户认为之前的评分有问题，理
 请对用户的复述进行多维评估并返回反馈。`;
 
   try {
+    console.log('[generateFeedback] → calling callAIWithJSON');
     return await callAIWithJSON<AIFeedback>(FEEDBACK_SYSTEM_PROMPT, userMessage);
-  } catch (error) {
+  } catch (error: any) {
+    console.log('[generateFeedback] ❌ failed:', error?.message);
     return generateFallbackFeedback(request);
   }
 }
 
 function generateFallbackFeedback(request: ScoringRequest): AIFeedback {
-  const hash = request.userTranscription.length % 100;
+  const inputLen = request.userTranscription.length;
+  const hash = inputLen % 100;
   const score = Math.max(60, Math.min(95, hash + 50));
+  const snippet = request.userTranscription.slice(0, 60) + (inputLen > 60 ? '...' : '');
 
   return {
     accuracyScore: score - 2,
     fluencyScore: score + 2,
     overallScore: score,
-    comparison: `用户复述与原始内容相比，整体把握了核心方向。部分细节表述略有偏差。`,
-    rootCause: '判定为表达技巧问题：用户理解正确但表达时组织不够条理。',
-    expressionTips: '建议采用"总-分-总"结构，先概述再展开细节。注意使用逻辑连接词增强连贯性。',
-    optimalExpression: '根据原始内容重新组织的优化表达模版...',
+    comparison: `[离线模式] 你的复述「${snippet}」共 ${inputLen} 字。请在「设置→AI模型配置」中填入 API Key 以启用 AI 精准分析。`,
+    rootCause: 'AI 服务未连接：请在设置页配置 API Key 后重试。当前为离线评分，仅供参考。',
+    expressionTips: '配置 AI 服务后，系统将针对你的复述内容给出：出入对比、表达诊断、优化建议等详细反馈。',
+    optimalExpression: '（AI 服务未配置，无法生成优化表达模版）',
     suggestions: [
-      '使用更简洁的句式表达复杂概念',
-      '注意控制语速，给听众留出理解时间',
-      '尝试用举例的方式辅助说明抽象概念',
+      '前往「设置 → AI 模型配置」填写 API Key',
+      '支持 Anthropic / OpenAI / DeepSeek 等兼容 API',
+      '配置完成后重新进行一次复述训练即可获得精准反馈',
     ],
-    modelUsed: 'fallback-mode',
+    modelUsed: 'offline (API key not configured)',
   };
 }
