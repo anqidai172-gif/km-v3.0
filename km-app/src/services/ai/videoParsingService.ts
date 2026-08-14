@@ -11,10 +11,9 @@ import type { ParseResult, ParsingRequest } from '../../types';
 import { getIpAddressAsync } from 'expo-network';
 import { setSetting } from '../../db/repositories/settingsRepo';
 
-// ── 公网服务器地址（Cloudflare Tunnel） ──────────────────────
-// 内测期间通过 cloudflared tunnel 暴露本地 server.js
-// 每次重启 tunnel 后更新此地址：npx cloudflared tunnel --url http://localhost:3100
-const CLOUDFLARE_TUNNEL_URL = 'https://annually-things-tsunami-denied.trycloudflare.com';
+// ── 服务器地址自动发现 ──────────────────────────────────
+// server.js 地址通过 App 设置页面手动配置（如 Cloudflare Tunnel URL）
+// 未配置时自动扫描局域网，均失败则回退 localhost
 
 // ── 服务器地址容错 ──────────────────────────────────────────
 // 当用户配置的地址不可达时，自动尝试以下备选地址
@@ -249,20 +248,17 @@ export async function autoDiscoverServer(): Promise<string | null> {
 /**
  * 解析实际可用的服务器地址
  *
- * 优先级：用户设置 > 硬编码隧道 > 自动发现局域网 > localhost
+ * 优先级：app.kmesh.site > 自动发现局域网 > localhost
  */
-export async function resolveServerURL(
-  configuredURL?: string | null,
-): Promise<{ url: string; usedFallback: boolean }> {
-  const clean = (configuredURL || '').replace(/\/+$/, '');
+const DEFAULT_SERVER_URL = 'https://app.kmesh.site';
 
-  // 1. 用户在设置里填写的地址（可随时修改，无需重打 APK）
-  if (clean) return { url: clean, usedFallback: false };
+export async function resolveServerURL(): Promise<{ url: string; usedFallback: boolean }> {
+  // 1. 内置默认地址（Cloudflare Tunnel 永久域名）
+  if (await probeServer(DEFAULT_SERVER_URL)) {
+    return { url: DEFAULT_SERVER_URL, usedFallback: false };
+  }
 
-  // 2. 硬编码的 Cloudflare Tunnel 兜底
-  if (CLOUDFLARE_TUNNEL_URL) return { url: CLOUDFLARE_TUNNEL_URL, usedFallback: false };
-
-  // 3. 自动发现局域网服务
+  // 2. 自动发现局域网服务
   console.warn('[resolveServerURL] 尝试自动发现...');
   const discovered = await autoDiscoverServer();
   if (discovered) {
@@ -270,7 +266,7 @@ export async function resolveServerURL(
     return { url: discovered, usedFallback: true };
   }
 
-  // 4. 全部失败 → localhost 兜底
+  // 3. 全部失败 → localhost 兜底
   console.warn('[resolveServerURL] 自动发现失败，fallback 到 localhost');
   return { url: 'http://localhost:3100', usedFallback: false };
 }
@@ -446,7 +442,7 @@ export async function parseViaServer(
   },
 ): Promise<ParseResult> {
   // 智能解析服务器地址（配置地址不可达时自动 fallback）
-  const { url: baseURL } = await resolveServerURL(serverURL);
+  const { url: baseURL } = await resolveServerURL();
   const url = `${baseURL}/api/parse`;
 
   // 从分享文案中提取纯 URL（如 "2.84 复制打开抖音... https://v.douyin.com/xxx/ c@a.Ag"）

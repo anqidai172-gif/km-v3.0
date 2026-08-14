@@ -11,7 +11,7 @@ export async function sendToServerForTranscription(
   mimeType: string,
 ): Promise<string> {
   const settings = useSettingsStore.getState().settings;
-  const { url: baseURL } = await resolveServerURL(settings.videoServerURL);
+  const { url: baseURL } = await resolveServerURL();
 
   const body: Record<string, string> = {
     audio: audioBase64,

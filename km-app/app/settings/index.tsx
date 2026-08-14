@@ -169,12 +169,7 @@ export default function SettingsPage() {
 
   // ── 辅助：自动发现服务器地址 ─────────────────────────
   const getServerURL = async (): Promise<string> => {
-    const { resolveServerURL, autoDiscoverServer } = await import('../../src/services/ai/videoParsingService');
-    // 用户已配置地址 → 直接使用（跳过局域网扫描）
-    if (videoServerURL && videoServerURL.trim()) {
-      return videoServerURL.trim().replace(/\/+$/, '');
-    }
-    // 未配置 → 尝试自动发现 + fallback 链
+    const { resolveServerURL } = await import('../../src/services/ai/videoParsingService');
     const resolved = await resolveServerURL();
     return resolved.url;
   };
